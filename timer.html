@@ -140,6 +140,15 @@
   .wbox button{width:44px;height:44px;border:none;border-radius:10px;background:#2a2a3c;color:var(--text);font-size:22px;font-weight:800;}
   .wbox .wval{font-size:20px;font-weight:800;min-width:96px;text-align:center;}
   .wbox .wlbl{color:var(--muted);font-size:13px;}
+  .wbox{flex-wrap:wrap;}
+  .wbox .incbtn{width:auto;padding:0 20px;height:44px;background:var(--accent);color:#0a0a0f;}
+  .wbox .incEditor{display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;margin-top:2px;}
+  .wbox .incEditor.on{display:flex;}
+  .wbox .incEditor input{width:100px;height:44px;border-radius:10px;border:1px solid var(--line);background:#0f0f18;color:var(--text);font-size:18px;font-weight:800;text-align:center;}
+  .wbox .incEditor .ikg{color:var(--muted);font-size:14px;}
+  .wbox .incEditor button{width:auto;padding:0 16px;height:44px;font-size:15px;}
+  .wbox .incEditor #wApply{background:var(--accent);color:#0a0a0f;}
+  .wbox .incEditor .ghost{background:#2a2a3c;}
   .splitbox{margin-top:12px;display:flex;flex-direction:column;gap:5px;}
   .splititem{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:15px;}
   .splititem .sn{color:var(--muted);font-weight:700;}
@@ -157,7 +166,7 @@
 </head>
 <body>
   <header>
-    <h1>사방달리기 타이머</h1>
+    <h1 id="appTitle">사방달리기 타이머</h1>
     <div class="sub" id="status">팀 선택 후 스타트</div>
     <div class="roundtag" id="roundTag">1판</div>
   </header>
@@ -208,9 +217,14 @@
         </div>
         <div class="wbox">
           <span class="wlbl">무게</span>
-          <button id="wDown">−</button>
           <span class="wval" id="wVal">50 kg</span>
-          <button id="wUp">＋</button>
+          <button id="wInc" class="incbtn">증량</button>
+          <div class="incEditor" id="incEditor">
+            <input id="wInput" type="number" inputmode="numeric" step="5" placeholder="kg">
+            <span class="ikg">kg</span>
+            <button id="wApply">확인</button>
+            <button id="wCancel" class="ghost">취소</button>
+          </div>
         </div>
         <div class="splitbox" id="splitBox"></div>
       </div>
@@ -569,6 +583,7 @@
     const clock=$('clock'), turnLabel=$('turnLabel'), graceLabel=$('graceLabel'),
           repsEl=$('reps'), doneBtn=$('doneBtn'), wVal=$('wVal'), splitBox=$('splitBox');
     const wbox=document.querySelector('.wbox'), modeToggle=document.querySelector('.modeToggle');
+    const wInc=$('wInc'), incEditor=$('incEditor'), wInput=$('wInput');
 
     const fmtC=ms=>(Math.max(0,ms)/1000).toFixed(1);
     const showTime=ms=> clock.textContent=fmtC(ms);
@@ -649,7 +664,31 @@
       running=false; grace=false; if(raf)cancelAnimationFrame(raf);
       startT=null; pausedElapsed=null; reps=0; repsAB=[0,0]; active=0; last3=null;
       clock.classList.remove('grace','warn'); graceLabel.textContent=""; doneBtn.disabled=false;
+      incEditor.classList.remove('on');
       splits=[]; showTime(limitMs); updTurn(); updReps(); renderSplits();
+    }
+    // 시작 = 처음이면 새로 시작, 일시정지/증량 후면 멈췄던 지점부터 재개
+    function startOrResume(){
+      if(pausedElapsed!=null){
+        startT=performance.now()-pausedElapsed; running=true; grace=false; pausedElapsed=null;
+        clock.classList.remove('grace'); graceLabel.textContent="";
+        if(raf)cancelAnimationFrame(raf); tick();
+      } else if(!running){ start(); }
+    }
+    // 바이킹 증량: 기록 유지 + 증량 지점 기록 + 제한시간으로 리셋 후 정지(시작 누르면 새 회차 재개)
+    function applyIncrease(newW){
+      const active_ = running || pausedElapsed!=null || splits.some(s=>!s.marker);
+      weight=Math.max(0,newW); wVal.textContent=weight+" kg";
+      incEditor.classList.remove('on');
+      if(active_){
+        splits.push({marker:'weight', value:weight});
+        running=false; grace=false; if(raf)cancelAnimationFrame(raf);
+        clock.classList.remove('grace','warn'); last3=null;
+        pausedElapsed=0;                 // 시작 시 새 회차부터(제한시간 만땅)
+        showTime(limitMs);
+        graceLabel.textContent="증량 "+weight+"kg — 시작을 누르면 재개";
+        renderSplits();
+      } else { showTime(limitMs); }      // 시작 전이면 무게만 설정
     }
     function fail(){
       running=false; grace=false; if(raf)cancelAnimationFrame(raf); beep(180,0.6);
@@ -666,21 +705,20 @@
       const arr=load(K.shots,[]); arr.unshift(rec); save(K.shots,arr);
       renderHist();
     }
-    function setWeight(w, log){
-      weight=Math.max(0,w); wVal.textContent=weight+" kg";
-      if(log && running && mode==="viking"){ splits.push({marker:'weight', value:weight}); renderSplits(); } // 기록 유지, 증량만 남김
-    }
+    function setWeight(w){ weight=Math.max(0,w); wVal.textContent=weight+" kg"; }
 
     document.querySelectorAll('.mt').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
     document.querySelectorAll('.lim').forEach(b=>b.addEventListener('click',()=>{ $('limCustom').value=""; setLimit(+b.dataset.s); }));
     $('limCustom').addEventListener('input',e=>{ const v=parseInt(e.target.value); if(v>0){ document.querySelectorAll('.lim').forEach(b=>b.classList.remove('active')); setLimit(v); } });
     doneBtn.addEventListener('click',done);
-    $('shotStart').addEventListener('click',start);
+    $('shotStart').addEventListener('click',startOrResume);
     $('shotPause').addEventListener('click',togglePause);
     $('shotReset').addEventListener('click',hardReset);
     $('shotFail').addEventListener('click',fail);
-    $('wDown').addEventListener('click',()=>setWeight(weight-5,true));
-    $('wUp').addEventListener('click',()=>setWeight(weight+5,true));
+    wInc.addEventListener('click',()=>{ wInput.value=weight; incEditor.classList.toggle('on'); if(incEditor.classList.contains('on')) wInput.focus(); });
+    $('wApply').addEventListener('click',()=>{ const v=parseInt(wInput.value); if(v>0) applyIncrease(v); else incEditor.classList.remove('on'); });
+    $('wCancel').addEventListener('click',()=>incEditor.classList.remove('on'));
+    wInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=parseInt(wInput.value); if(v>0) applyIncrease(v); } });
     setMode("sisyphus"); setLimit(30); setWeight(50);
 
     // 임베드에서 종류 고정 시 상단 모드 토글 숨김 (2Q 통합용)
@@ -711,6 +749,7 @@
       switchView('shot');
       const mb=document.querySelector('.mt[data-m="'+e+'"]'); if(mb) mb.click();
       const mtg=document.querySelector('.modeToggle'); if(mtg) mtg.style.display='none'; // 종류 고정: 모드 토글 숨김
+      const tt=document.getElementById('appTitle'); if(tt) tt.textContent = e==='viking' ? '바이킹 타이머' : '시지프스 타이머';
     } else if(e==='race'){
       const sb=document.querySelector('nav button[data-v="shot"]'); if(sb) sb.style.display='none';
       switchView('race');
