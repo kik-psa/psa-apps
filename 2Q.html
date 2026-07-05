@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>2Q 통합</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9aa;--accent:#37d67a;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;overflow:hidden;}
+  .wrap{display:flex;flex-direction:column;height:100%;padding:env(safe-area-inset-top) 0 0;}
+  /* top bar */
+  .topbar{display:flex;align-items:center;gap:10px;height:46px;padding:0 12px;border-bottom:1px solid var(--line);background:#0d0d15;flex-shrink:0;}
+  .topbar .b2q{font-weight:900;font-size:17px;color:var(--accent);letter-spacing:-.5px;}
+  .topbar .cur{flex:1;font-size:14px;font-weight:700;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .topbar .menu{background:#1c1c28;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px 12px;font-size:16px;font-weight:800;}
+  .frames{flex:1;position:relative;min-height:0;}
+  .frames iframe{position:absolute;inset:0;width:100%;height:100%;border:none;background:var(--bg);}
+  /* scrim + drawer */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40;}
+  .scrim.open{opacity:1;pointer-events:auto;}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:280px;max-width:82vw;background:#12121a;border-left:1px solid var(--line);
+          transform:translateX(100%);transition:transform .22s ease;z-index:50;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);}
+  .drawer.open{transform:translateX(0);}
+  .dhead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);}
+  .dhead .t{font-weight:900;font-size:20px;color:var(--accent);}
+  .dhead .x{background:#1c1c28;border:none;color:var(--text);border-radius:10px;padding:6px 11px;font-size:16px;font-weight:800;}
+  .dlist{flex:1;overflow-y:auto;padding:8px;}
+  .ditem{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:var(--text);
+         border-radius:12px;padding:14px 14px;font-size:16px;font-weight:800;text-align:left;}
+  .ditem .ic{font-size:22px;width:26px;text-align:center;}
+  .ditem.on{background:#12271b;color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);}
+  .ghead{justify-content:space-between;}
+  .ghead .chev{transition:transform .2s;color:var(--muted);font-size:14px;}
+  .ghead.exp .chev{transform:rotate(180deg);}
+  .dsub{overflow:hidden;max-height:0;transition:max-height .22s ease;}
+  .dsub.open{max-height:220px;}
+  .ditem.sub{padding-left:44px;font-size:15px;}
+  .ditem.sub.on{background:#12271b;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <span class="b2q">2Q</span>
+      <span class="cur" id="curName">허들 및 콘</span>
+      <button class="menu" id="menuBtn">☰ 메뉴</button>
+    </div>
+    <div class="frames" id="frames"></div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="drawer" id="drawer">
+    <div class="dhead"><span class="t">2Q</span><button class="x" id="closeBtn">✕</button></div>
+    <div class="dlist">
+      <button class="ditem" data-view="sisyphus"><span class="ic">🪨</span>시지프스</button>
+      <button class="ditem" data-view="viking"><span class="ic">🛶</span>바이킹</button>
+      <button class="ditem ghead exp" id="sabangHead"><span><span class="ic">🏁</span>사방달리기 타이머</span><span class="chev">▾</span></button>
+      <div class="dsub open" id="sabangSub">
+        <button class="ditem sub" data-view="uphill">업힐</button>
+        <button class="ditem sub" data-view="ring">링</button>
+        <button class="ditem sub on" data-view="race">허들 및 콘</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const SRC={
+    sisyphus:'timer.html?embed=sisyphus',
+    viking:'timer.html?embed=viking',
+    uphill:'test.html?type=uphill',
+    ring:'test.html?type=ring',
+    race:'timer.html?embed=race'
+  };
+  const NAME={ sisyphus:'시지프스', viking:'바이킹', uphill:'사방달리기 타이머 › 업힐', ring:'사방달리기 타이머 › 링', race:'사방달리기 타이머 › 허들 및 콘' };
+  const frames={};
+  function show(key){
+    if(!frames[key]){ const f=document.createElement('iframe'); f.src=SRC[key]; document.getElementById('frames').appendChild(f); frames[key]=f; }
+    Object.keys(frames).forEach(k=> frames[k].style.display = k===key?'block':'none');
+  }
+  function openDrawer(o){ document.getElementById('drawer').classList.toggle('open',o); document.getElementById('scrim').classList.toggle('open',o); }
+  function selectView(v){
+    show(v);
+    document.getElementById('curName').textContent=NAME[v];
+    document.querySelectorAll('.ditem[data-view]').forEach(b=> b.classList.toggle('on', b.dataset.view===v));
+    // 사방 하위면 그룹 펼쳐두기
+    if(v==='uphill'||v==='ring'||v==='race'){ document.getElementById('sabangSub').classList.add('open'); document.getElementById('sabangHead').classList.add('exp'); }
+    openDrawer(false);
+  }
+  document.getElementById('menuBtn').addEventListener('click',()=>openDrawer(true));
+  document.getElementById('closeBtn').addEventListener('click',()=>openDrawer(false));
+  document.getElementById('scrim').addEventListener('click',()=>openDrawer(false));
+  document.querySelectorAll('.ditem[data-view]').forEach(b=> b.addEventListener('click',()=>selectView(b.dataset.view)));
+  document.getElementById('sabangHead').addEventListener('click',()=>{
+    document.getElementById('sabangSub').classList.toggle('open');
+    document.getElementById('sabangHead').classList.toggle('exp');
+  });
+  // 초기: 허들 및 콘
+  selectView('race'); openDrawer(false);
+</script>
+</body>
+</html>

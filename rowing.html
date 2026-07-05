@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>1Q 로잉 실시간 집계</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9aa;--accent:#37d67a;--gold:#ffd54a;--blue:#3aa0ff;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;}
+  body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 0;}
+  header{text-align:center;padding:8px 12px;position:relative;border-bottom:1px solid var(--line);}
+  header h1{font-size:16px;font-weight:800;}
+  header .conn{position:absolute;right:10px;top:10px;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700;}
+  .conn.ok{background:#173a26;color:#7ee6a6;} .conn.no{background:#3a1a1a;color:#ff9a9a;}
+  main{flex:1;overflow-y:auto;min-height:0;}
+  .view{display:none;padding:12px;} .view.active{display:block;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .card h3{font-size:14px;margin-bottom:10px;color:var(--muted);}
+  label.f{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px;}
+  input,select,textarea{width:100%;background:#0c0d12;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px;font-size:16px;font-family:inherit;}
+  textarea{min-height:90px;resize:vertical;font-size:13px;}
+  button{border:none;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;padding:12px 16px;}
+  .b-primary{background:var(--accent);color:#0a0a0f;} .b-sec{background:#2a2d3a;color:var(--text);} .b-danger{background:#4a1f26;color:#ff9aa5;}
+  .row{display:flex;gap:8px;}
+  /* entry */
+  .stageToggle{display:flex;gap:8px;margin-bottom:12px;}
+  .stageToggle button{flex:1;background:#1c1c28;color:var(--muted);}
+  .stageToggle button.on{background:var(--accent);color:#0a0a0f;}
+  .lane{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+  .lane .lb{width:64px;font-weight:800;font-size:15px;color:var(--muted);}
+  .lane input{flex:1;font-size:24px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;padding:10px 12px;}
+  .lane .u{color:var(--muted);font-size:14px;}
+  .teamsum{display:flex;justify-content:space-between;align-items:baseline;background:#12121c;border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:6px;}
+  .teamsum .v{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--accent);}
+  .saved{text-align:center;color:var(--muted);font-size:12px;margin-top:8px;height:16px;}
+  /* dashboard */
+  .lbcard{margin-bottom:14px;}
+  .lbrow{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line);}
+  .lbrow:last-child{border-bottom:none;}
+  .lbrow.top4{background:rgba(55,214,122,.08);}
+  .lbrow.first{background:rgba(255,213,74,.12);}
+  .lbpos{width:34px;font-size:18px;font-weight:900;text-align:center;}
+  .lbnm{flex:1;font-size:17px;font-weight:700;}
+  .lbsum{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .lbgap{width:78px;text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .big-dash h2{font-size:18px;text-align:center;margin:4px 0 10px;font-weight:800;}
+  .empty{color:var(--muted);text-align:center;padding:30px;}
+  nav{display:flex;border-top:1px solid var(--line);background:#0d0d15;padding-bottom:env(safe-area-inset-bottom);}
+  nav button{flex:1;background:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav button .ic{font-size:20px;} nav button.active{color:var(--accent);}
+  .hint{color:var(--muted);font-size:12px;line-height:1.6;}
+  .sharebox{background:#0c0d12;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:#8fd6ff;margin-top:8px;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>1Q 로잉 실시간 집계</h1>
+    <span class="conn no" id="conn">미연결</span>
+  </header>
+  <main>
+    <!-- 입력 -->
+    <section class="view active" id="v-entry">
+      <div class="card" id="pickCard">
+        <h3>담당 국가 선택</h3>
+        <select id="countrySel"></select>
+        <div class="hint" style="margin-top:8px;">한 번 선택하면 이 기기에 저장돼요. (설정에서 변경 가능)</div>
+      </div>
+      <div id="entryArea" style="display:none;">
+        <div class="stageToggle">
+          <button id="stMid" class="on" onclick="setStage('mid')">중간 기록</button>
+          <button id="stFinal" onclick="setStage('final')">최종 기록</button>
+        </div>
+        <div id="lanes"></div>
+        <div class="teamsum"><span>팀 합산 (<span id="sumLabel">중간</span>)</span><span class="v"><span id="teamSum">0</span> m</span></div>
+        <div class="saved" id="savedStat"></div>
+      </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section class="view" id="v-dash">
+      <div class="big-dash">
+        <div class="card lbcard">
+          <h2>🟦 중간 순위 (중간 합산)</h2>
+          <div id="midBoard"><div class="empty">데이터 대기 중…</div></div>
+        </div>
+        <div class="card lbcard">
+          <h2>🏁 최종 순위 (총 합산)</h2>
+          <div id="finalBoard"><div class="empty">데이터 대기 중…</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설정 -->
+    <section class="view" id="v-set">
+      <div class="card">
+        <h3>1) Firebase 연결</h3>
+        <div class="hint">무료 Firebase 실시간 DB에 연결해야 8개 기기가 실시간 공유돼요. 아래에 Firebase 웹 config(JSON)를 붙여넣고 연결하세요.</div>
+        <label class="f">Firebase config (JSON)</label>
+        <textarea id="fbCfg" placeholder='{ "apiKey": "...", "databaseURL": "https://....firebasedatabase.app", ... }'></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button class="b-primary" style="flex:1;" onclick="saveFbConfig()">연결 / 저장</button>
+        </div>
+        <div id="shareWrap" style="display:none;">
+          <label class="f">팀 공유 링크 (이 링크를 8명에게 보내면 자동 연결)</label>
+          <div class="sharebox" id="shareLink"></div>
+          <button class="b-sec" style="width:100%;margin-top:8px;" onclick="copyShare()">링크 복사</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>2) 국가 이름 (8국가)</h3>
+        <div id="cnames"></div>
+        <label class="f">국가당 레인 수</label>
+        <input id="lanesPer" type="number" value="6">
+        <button class="b-primary" style="width:100%;margin-top:10px;" onclick="saveCfg()">국가/레인 저장</button>
+      </div>
+      <div class="card">
+        <h3>3) 관리</h3>
+        <label class="f">이 기기 담당 국가</label>
+        <select id="myCountrySet"></select>
+        <button class="b-sec" style="width:100%;margin-top:10px;" onclick="setMyCountry()">담당 국가 변경</button>
+        <button class="b-danger" style="width:100%;margin-top:10px;" onclick="resetData()">전체 기록 초기화 (모든 국가)</button>
+      </div>
+    </section>
+  </main>
+  <nav>
+    <button class="active" data-v="entry"><span class="ic">⌨️</span>입력</button>
+    <button data-v="dash"><span class="ic">🏆</span>대시보드</button>
+    <button data-v="set"><span class="ic">⚙️</span>설정</button>
+  </nav>
+
+<script>
+const $=id=>document.getElementById(id);
+const DEF_COUNTRIES=["대한민국","인도","일본","호주","","","",""];
+let db=null, fbConfig=null, appCfg={countries:DEF_COUNTRIES.slice(), lanesPer:6};
+let myCountry=null, curStage='mid', dataCache={};
+
+// ---------- config load (URL hash / localStorage) ----------
+function loadFbConfig(){
+  const h=location.hash;
+  if(h.indexOf('cfg=')>-1){
+    try{ const b=decodeURIComponent(h.split('cfg=')[1]); const c=JSON.parse(atob(b)); localStorage.setItem('rowing_fbcfg',JSON.stringify(c)); return c; }catch(e){}
+  }
+  const s=localStorage.getItem('rowing_fbcfg'); if(s){ try{ return JSON.parse(s); }catch(e){} }
+  return null;
+}
+function initFirebase(cfg){
+  try{
+    fbConfig=cfg;
+    if(firebase.apps.length) firebase.app().delete();
+  }catch(e){}
+  try{
+    firebase.initializeApp(cfg);
+    db=firebase.database();
+    $('conn').className='conn ok'; $('conn').textContent='연결됨';
+    subscribe();
+    return true;
+  }catch(e){ $('conn').className='conn no'; $('conn').textContent='연결 실패'; alert('연결 실패: '+e.message); return false; }
+}
+function saveFbConfig(){
+  let raw=$('fbCfg').value.trim();
+  if(!raw){ alert('config를 붙여넣어 주세요'); return; }
+  let cfg;
+  try{ cfg=JSON.parse(raw); }catch(e){
+    // try to eval object-literal (firebase console sometimes gives JS object)
+    try{ cfg=(new Function('return ('+raw+')'))(); }catch(e2){ alert('config 형식이 올바르지 않아요 (JSON)'); return; }
+  }
+  if(!cfg.databaseURL){ alert('databaseURL이 없어요. Realtime Database를 만들고 그 URL이 포함된 config를 쓰세요.'); return; }
+  localStorage.setItem('rowing_fbcfg',JSON.stringify(cfg));
+  if(initFirebase(cfg)){ showShare(cfg); alert('연결됐어요!'); }
+}
+function showShare(cfg){
+  const link=location.origin+location.pathname+'#cfg='+encodeURIComponent(btoa(JSON.stringify(cfg)));
+  $('shareLink').textContent=link; $('shareWrap').style.display='block';
+}
+function copyShare(){ const t=$('shareLink').textContent; navigator.clipboard&&navigator.clipboard.writeText(t); alert('복사됐어요'); }
+
+// ---------- realtime subscribe ----------
+function subscribe(){
+  if(!db) return;
+  db.ref('rowing/config').on('value',s=>{ const v=s.val(); if(v){ appCfg=Object.assign({countries:DEF_COUNTRIES.slice(),lanesPer:6},v); renderCountrySelectors(); renderLanes(); renderCfgForm(); } });
+  db.ref('rowing/data').on('value',s=>{ dataCache=s.val()||{}; renderDash(); updTeamSum(); });
+}
+
+// ---------- entry ----------
+function renderCountrySelectors(){
+  const opts=appCfg.countries.map((c,i)=> c?('<option value="'+i+'">'+esc(c)+'</option>'):'').join('');
+  $('countrySel').innerHTML='<option value="">— 국가 선택 —</option>'+opts;
+  $('myCountrySet').innerHTML='<option value="">— 국가 선택 —</option>'+opts;
+  const saved=localStorage.getItem('rowing_country');
+  if(saved!==null && appCfg.countries[saved]){ myCountry=+saved; $('countrySel').value=saved; $('myCountrySet').value=saved; showEntry(); }
+}
+$('countrySel').addEventListener('change',e=>{ if(e.target.value!==''){ myCountry=+e.target.value; localStorage.setItem('rowing_country',myCountry); showEntry(); } });
+function setMyCountry(){ const v=$('myCountrySet').value; if(v!==''){ myCountry=+v; localStorage.setItem('rowing_country',myCountry); $('countrySel').value=v; showEntry(); switchView('entry'); } }
+function showEntry(){ $('pickCard').style.display='none'; $('entryArea').style.display='block'; renderLanes(); }
+function setStage(s){ curStage=s; $('stMid').classList.toggle('on',s==='mid'); $('stFinal').classList.toggle('on',s==='final'); $('sumLabel').textContent=s==='mid'?'중간':'최종'; renderLanes(); }
+function renderLanes(){
+  if(myCountry===null){ return; }
+  const n=appCfg.lanesPer||6;
+  const startLane=laneStart(myCountry,n);
+  let html='';
+  for(let l=0;l<n;l++){
+    const val=getVal(curStage,myCountry,l);
+    html+='<div class="lane"><span class="lb">레인 '+(startLane+l)+'</span>'+
+      '<input type="number" inputmode="numeric" pattern="[0-9]*" value="'+(val==null?'':val)+'" data-lane="'+l+'" placeholder="0"><span class="u">m</span></div>';
+  }
+  $('lanes').innerHTML=html;
+  $('lanes').querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',()=>{ writeVal(curStage,myCountry,+inp.dataset.lane,inp.value); });
+  });
+  updTeamSum();
+}
+function laneStart(ci,n){ return ci*n+1; } // 순차 배정 (국가0:1~, 국가1:7~ ...)
+function getVal(stage,ci,l){ try{ return dataCache[stage][ci][l]; }catch(e){ return null; } }
+function writeVal(stage,ci,l,v){
+  const num=v===''?null:(parseInt(v,10)||0);
+  if(db){ db.ref('rowing/data/'+stage+'/'+ci+'/'+l).set(num); $('savedStat').textContent='저장됨 · '+new Date().toLocaleTimeString(); }
+  else { $('savedStat').textContent='⚠️ Firebase 미연결 (설정에서 연결)'; }
+  updTeamSum();
+}
+function teamSum(stage,ci){ let s=0; const n=appCfg.lanesPer||6; for(let l=0;l<n;l++){ const v=getVal(stage,ci,l); if(typeof v==='number') s+=v; } return s; }
+function updTeamSum(){ if(myCountry!==null) $('teamSum').textContent=teamSum(curStage,myCountry); }
+
+// ---------- dashboard ----------
+function renderDash(){
+  renderBoard('mid', $('midBoard'));
+  renderBoard('final', $('finalBoard'));
+}
+function renderBoard(stage, el){
+  const rows=appCfg.countries.map((c,i)=> c?({name:c, sum:teamSum(stage,i)}):null).filter(Boolean);
+  if(!rows.length){ el.innerHTML='<div class="empty">국가를 설정하세요.</div>'; return; }
+  rows.sort((a,b)=> b.sum-a.sum);
+  const medal=["🥇","🥈","🥉"];
+  el.innerHTML=rows.map((r,i)=>{
+    const gap=i===0?'–':('-'+(rows[i-1].sum-r.sum)+' m');
+    return '<div class="lbrow'+(i===0?' first':(i<4?' top4':''))+'">'+
+      '<div class="lbpos">'+(medal[i]||(i+1))+'</div>'+
+      '<div class="lbnm">'+esc(r.name)+'</div>'+
+      '<div class="lbsum">'+r.sum+'<span style="font-size:12px;color:#889"> m</span></div>'+
+      '<div class="lbgap">'+gap+'</div></div>';
+  }).join('');
+}
+
+// ---------- settings ----------
+function renderCfgForm(){
+  $('cnames').innerHTML=appCfg.countries.map((c,i)=>
+    '<label class="f">'+(i+1)+'번 국가</label><input data-ci="'+i+'" value="'+esc(c||'')+'" placeholder="국가명">'
+  ).join('');
+  $('lanesPer').value=appCfg.lanesPer||6;
+}
+function saveCfg(){
+  const names=[...$('cnames').querySelectorAll('input')].map(i=>i.value.trim());
+  appCfg.countries=names; appCfg.lanesPer=parseInt($('lanesPer').value)||6;
+  if(db){ db.ref('rowing/config').set(appCfg); } else { renderCountrySelectors(); renderLanes(); }
+  alert('저장했어요');
+}
+function resetData(){
+  if(!db){ alert('Firebase 연결 후 가능'); return; }
+  if(confirm('모든 국가의 기록(중간/최종)을 초기화할까요?')){ db.ref('rowing/data').remove(); }
+}
+
+// ---------- nav ----------
+function switchView(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  $('v-'+v).classList.add('active');
+  document.querySelector('nav button[data-v="'+v+'"]').classList.add('active');
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.v)));
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ---------- boot ----------
+renderCfgForm(); renderCountrySelectors();
+(function(){
+  const cfg=loadFbConfig();
+  if(cfg){ $('fbCfg').value=JSON.stringify(cfg,null,2); initFirebase(cfg); showShare(cfg); }
+  else { switchView('set'); }
+})();
+</script>
+</body>
+</html>

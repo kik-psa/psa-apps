@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>사방달리기 테스트 측정</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9aa;--accent:#37d67a;--gold:#ffd54a;
+        --l1:#ff5c5c;--l2:#3aa0ff;--l3:#37d67a;--l4:#ffb020;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;}
+  body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 0;}
+  header{text-align:center;padding:8px 12px;border-bottom:1px solid var(--line);}
+  header h1{font-size:16px;font-weight:800;}
+  main{flex:1;overflow-y:auto;min-height:0;}
+  .view{display:none;padding:12px;} .view.active{display:block;}
+  .seg{display:flex;gap:8px;margin-bottom:10px;}
+  .seg button{flex:1;background:#1c1c28;color:var(--muted);border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:800;font-size:15px;}
+  .seg button.on{background:var(--accent);color:#0a0a0f;border-color:var(--accent);}
+  .seg.small button{padding:9px 0;font-size:15px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;}
+  .card h3{font-size:13px;color:var(--muted);margin-bottom:10px;} .card h3 small{color:#667;font-weight:400;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .chip{background:#1c2230;border:1px solid #33405a;color:#a9c6ef;border-radius:20px;padding:7px 12px;font-size:13px;font-weight:700;}
+  .chip.custom{background:#2a2230;border-color:#4a3a5a;color:#d9b8ef;}
+  .afield{background:#0e0e16;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:7px;}
+  .afrow{display:flex;align-items:center;gap:8px;}
+  .afrow b{min-width:88px;font-size:14px;} .afrow .u{color:var(--muted);font-size:13px;width:28px;}
+  .afrow input,.afhead input{background:#0c0d12;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-size:15px;}
+  .afrow .fval{flex:1;text-align:right;} .afrow .fname{width:100px;} .afrow .funit{width:52px;}
+  .afhead{display:flex;align-items:center;gap:8px;margin-bottom:6px;} .afhead b{flex:1;}
+  .x{background:#3a1f26;color:#ff9aa5;border:none;border-radius:8px;padding:6px 9px;font-weight:800;}
+  .rhctl button{background:#2a2a3c;color:var(--text);border:none;border-radius:8px;width:30px;height:30px;font-size:16px;font-weight:800;}
+  .ringH{display:flex;flex-wrap:wrap;gap:6px;}
+  .ringH .rh{display:flex;align-items:center;gap:3px;background:#0c0d12;border:1px solid var(--line);border-radius:8px;padding:3px 6px;}
+  .ringH .rh span{font-size:11px;color:var(--muted);} .ringH .rh input{width:50px;background:none;border:none;color:var(--text);font-size:14px;text-align:right;}
+  .cpseq{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .cpitem{background:#12121c;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;font-weight:700;}
+  .cpitem button{background:none;border:none;color:#ff9aa5;font-weight:800;margin-left:4px;}
+  .cpseq .arr{color:var(--muted);} .cphint{color:#778;font-size:12px;}
+  .lane{display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px;}
+  .lane.l1{border-color:var(--l1);} .lane.l2{border-color:var(--l2);} .lane.l3{border-color:var(--l3);} .lane.l4{border-color:var(--l4);}
+  .lane .badge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0a0a0f;flex-shrink:0;}
+  .l1 .badge{background:var(--l1);} .l2 .badge{background:var(--l2);} .l3 .badge{background:var(--l3);} .l4 .badge{background:var(--l4);}
+  .lane .mid{flex:1;min-width:0;}
+  .lane .nm{width:100%;background:#0c0d12;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font-size:13px;margin-bottom:4px;}
+  .lane .t{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+  .lane .splits{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+  .lane .splits .sp{background:#0c0d12;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .lane .splits .sp b{color:var(--text);font-weight:700;} .lane .splits .sp i{color:#6a7;font-style:normal;}
+  .lane .fbtn{flex-shrink:0;width:104px;height:56px;border:none;border-radius:12px;font-size:13px;font-weight:800;background:#2a2a3c;color:var(--text);line-height:1.15;padding:2px;}
+  .lane.armed .fbtn{background:#e63946;color:#fff;} .lane .fbtn:disabled{background:#1c1c28;color:#4a4a5a;}
+  .lane .failx{flex-shrink:0;width:40px;height:56px;border:none;border-radius:10px;background:#3a1f26;color:#ff9aa5;font-size:12px;font-weight:800;}
+  .lane.failed{opacity:.6;} .lane.failed .t{color:#ff9aa5;text-decoration:line-through;}
+  .bar{display:flex;gap:8px;margin:8px 0;}
+  .big{flex:1;height:54px;border:none;border-radius:14px;font-size:17px;font-weight:800;}
+  #startBtn{background:var(--accent);color:#0a0a0f;} #saveBtn{background:var(--gold);color:#0a0a0f;} #resetBtn{background:#3a3a4c;color:var(--text);}
+  .big:disabled{opacity:.4;}
+  .status{text-align:center;color:var(--muted);font-size:12px;min-height:16px;margin-bottom:4px;}
+  .grp{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;}
+  .grp .gh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .grp .gt{font-weight:800;font-size:14px;}
+  .grp .stat{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:8px;}
+  .grp .stat b{color:var(--accent);font-variant-numeric:tabular-nums;}
+  .grp .cpavg{font-size:12.5px;color:var(--muted);background:#12121c;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;line-height:1.7;}
+  .grp .cpavg b{color:var(--gold);font-variant-numeric:tabular-nums;}
+  .runline{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;padding:5px 0;border-top:1px solid var(--line);}
+  .runline .rn{flex:0 0 auto;min-width:118px;color:var(--muted);} .runline .rt{flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.5;}
+  .runline .fail{color:#ff9aa5;font-weight:800;} .runline .del,.runline .delone{background:#3a1f26;color:#ff9aa5;border:none;border-radius:6px;padding:2px 7px;font-size:11px;}
+  .grp .ghr{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .grp .gtime{color:#889;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .grp .delgrp{background:#3a1f26;color:#ff9aa5;border:1px solid #5a2f38;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .empty{color:var(--muted);text-align:center;padding:40px 12px;}
+  .tools{display:flex;gap:8px;margin-bottom:12px;} .tools button{flex:1;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;}
+  #csvBtn{background:#22303a;color:#8fd6ff;} #clrBtn{background:#4a1f26;color:#ff9aa5;}
+  nav{display:flex;border-top:1px solid var(--line);background:#0d0d15;padding-bottom:env(safe-area-inset-bottom);}
+  nav button{flex:1;background:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav button .ic{font-size:19px;} nav button.active{color:var(--accent);}
+</style>
+</head>
+<body>
+  <header><h1>사방달리기 테스트 측정 <span style="color:var(--muted);font-weight:400;font-size:12px;">업힐 · 링</span></h1></header>
+  <main>
+    <section class="view active" id="v-run">
+      <div class="seg" id="typeSeg"><button data-t="uphill" class="on">업힐</button><button data-t="ring">링</button></div>
+      <div class="card"><h3>측정 인원</h3>
+        <div class="seg small" id="cntSeg"><button data-n="1">1명</button><button data-n="2" class="on">2명</button><button data-n="3">3명</button><button data-n="4">4명</button></div>
+      </div>
+      <div class="card">
+        <h3>세팅 변수 <small>필요한 것만 추가</small></h3>
+        <div class="chips" id="fieldChips"></div>
+        <div id="activeFields"></div>
+      </div>
+      <div class="card">
+        <h3>측정 구간 (스플릿) <small>지점을 순서대로 추가</small></h3>
+        <div class="chips" id="cpChips"></div>
+        <div id="activeCps"></div>
+      </div>
+      <div class="status" id="status">시작을 누르면 동시에 측정됩니다</div>
+      <div id="lanes"></div>
+      <div class="bar"><button class="big" id="startBtn">시작</button><button class="big" id="saveBtn" disabled>이 런 저장</button><button class="big" id="resetBtn">리셋</button></div>
+      <div class="status" style="font-size:11px;">각 레인 버튼을 <b>지점 통과할 때마다</b> 탭 → 다음 지점으로 바뀜. 마지막 지점까지 찍으면 완료 → "이 런 저장".</div>
+    </section>
+    <section class="view" id="v-rec">
+      <div class="tools"><button id="csvBtn">⬇ CSV 내보내기</button><button id="clrBtn">전체 삭제</button></div>
+      <div class="seg" id="recFilter"><button data-f="all" class="on">전체</button><button data-f="uphill">업힐</button><button data-f="ring">링</button></div>
+      <div id="records"></div>
+    </section>
+  </main>
+  <nav>
+    <button class="active" data-v="run"><span class="ic">⏱️</span>측정</button>
+    <button data-v="rec"><span class="ic">📊</span>기록·집계</button>
+  </nav>
+
+<script>
+const $=id=>document.getElementById(id);
+const RUNK='sb_test_runs_v1', BLDK='sb_test_builder_v2';
+const PRESET_FIELDS={
+  uphill:[ {label:'줄 길이',unit:'cm'},{label:'경사',unit:'°'},{label:'업힐 전 거리',unit:'m'} ],
+  ring:[ {label:'링 개수',unit:'개'},{label:'링 간격',unit:'cm'},{label:'각 링 높이',unit:'cm',special:'rh'},{label:'링 이전 거리',unit:'m'},{label:'링 이후 거리',unit:'m'} ]
+};
+const PRESET_CPS={ uphill:['업힐 진입','업힐 완료'], ring:['링 진입','링 통과','최종 완료'] };
+const LANE=['l1','l2','l3','l4'];
+
+let testType='uphill', runners=2, fields=[], cps=[], laneState=[], startT=null, running=false, rafId=null, recFilter='all';
+let builder=loadJSON(BLDK,{});
+
+function loadJSON(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
+function saveJSON(k,v){localStorage.setItem(k,JSON.stringify(v));}
+function loadRuns(){return loadJSON(RUNK,[]);}
+function saveRuns(a){saveJSON(RUNK,a);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmt(ms){ if(ms==null)return'—'; const t=Math.max(0,ms),m=Math.floor(t/60000),s=Math.floor((t%60000)/1000),cs=Math.floor((t%1000)/10),p=n=>String(n).padStart(2,'0'); return (m>0?m+':':'')+p(s)+'.'+p(cs); }
+const avgOf=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+
+// ---- builder persistence ----
+function saveBuilder(){ builder[testType]={fields:fields,cps:cps}; saveJSON(BLDK,builder); }
+function switchType(t){
+  saveBuilder(); testType=t;
+  const b=builder[t]||{};
+  fields=(b.fields||[]).map(f=>Object.assign({},f, f.heights?{heights:f.heights.slice()}:{}));
+  cps=(b.cps||[]).slice();
+  renderCfg(); renderCps(); resetRun();
+}
+
+// ---- config builder ----
+function renderCfg(){
+  const avail=PRESET_FIELDS[testType];
+  const added=fields.filter(f=>!f.custom).map(f=>f.label);
+  let chips=avail.map((p,idx)=> added.includes(p.label)?'':'<button class="chip" data-add="'+idx+'">+ '+esc(p.label)+'</button>').join('');
+  chips+='<button class="chip custom" data-custom="1">+ 직접입력</button>';
+  $('fieldChips').innerHTML=chips;
+  $('activeFields').innerHTML=fields.map((f,i)=>{
+    if(f.special==='rh'){
+      const boxes=(f.heights||[]).map((h,k)=>'<div class="rh"><span>'+(k+1)+'</span><input type="number" data-fi="'+i+'" data-hi="'+k+'" value="'+(h!=null?h:'')+'"><span>cm</span></div>').join('');
+      return '<div class="afield"><div class="afhead"><b>각 링 높이</b><span class="rhctl"><button data-rhm="'+i+'">−</button><button data-rhp="'+i+'">＋</button></span><button class="x" data-del="'+i+'">×</button></div><div class="ringH">'+boxes+'</div></div>';
+    }
+    const nameCell=f.custom?'<input class="fname" data-fi="'+i+'" value="'+esc(f.label)+'" placeholder="변수 이름">':'<b>'+esc(f.label)+'</b>';
+    const unitCell=f.custom?'<input class="funit" data-fi="'+i+'" value="'+esc(f.unit||'')+'" placeholder="단위">':'<span class="u">'+esc(f.unit||'')+'</span>';
+    const valType=f.custom?'text':'number';
+    return '<div class="afield"><div class="afrow">'+nameCell+'<input class="fval" type="'+valType+'" data-fi="'+i+'" value="'+esc(f.value!=null?f.value:'')+'" placeholder="값">'+unitCell+'<button class="x" data-del="'+i+'">×</button></div></div>';
+  }).join('');
+  // wire
+  $('fieldChips').querySelectorAll('[data-add]').forEach(b=> b.addEventListener('click',()=>{ const p=PRESET_FIELDS[testType][+b.dataset.add]; const nf=Object.assign({value:''},p); if(p.special==='rh') nf.heights=[null,null,null,null,null]; fields.push(nf); renderCfg(); }));
+  $('fieldChips').querySelector('[data-custom]').addEventListener('click',()=>{ fields.push({label:'',unit:'',value:'',custom:true}); renderCfg(); });
+  $('activeFields').querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click',()=>{ fields.splice(+b.dataset.del,1); renderCfg(); }));
+  $('activeFields').querySelectorAll('.fval').forEach(inp=> inp.addEventListener('input',()=>{ fields[+inp.dataset.fi].value=inp.value; saveBuilder(); }));
+  $('activeFields').querySelectorAll('.fname').forEach(inp=> inp.addEventListener('input',()=>{ fields[+inp.dataset.fi].label=inp.value; saveBuilder(); }));
+  $('activeFields').querySelectorAll('.funit').forEach(inp=> inp.addEventListener('input',()=>{ fields[+inp.dataset.fi].unit=inp.value; saveBuilder(); }));
+  $('activeFields').querySelectorAll('.ringH input').forEach(inp=> inp.addEventListener('input',()=>{ fields[+inp.dataset.fi].heights[+inp.dataset.hi]=inp.value===''?null:parseFloat(inp.value); saveBuilder(); }));
+  $('activeFields').querySelectorAll('[data-rhp]').forEach(b=> b.addEventListener('click',()=>{ fields[+b.dataset.rhp].heights.push(null); renderCfg(); }));
+  $('activeFields').querySelectorAll('[data-rhm]').forEach(b=> b.addEventListener('click',()=>{ const h=fields[+b.dataset.rhm].heights; if(h.length>1)h.pop(); renderCfg(); }));
+  saveBuilder();
+}
+
+// ---- split builder ----
+function checkpoints(){ return cps.length?cps:['완료']; }
+function renderCps(){
+  const avail=PRESET_CPS[testType];
+  let chips=avail.map(c=> cps.includes(c)?'':'<button class="chip" data-addcp="'+esc(c)+'">+ '+esc(c)+'</button>').join('');
+  chips+='<button class="chip custom" data-customcp="1">+ 직접추가</button>';
+  $('cpChips').innerHTML=chips;
+  $('activeCps').innerHTML = cps.length
+    ? '<div class="cpseq">'+cps.map((c,i)=>'<span class="cpitem">'+(i+1)+'. '+esc(c)+'<button data-delcp="'+i+'">×</button></span>').join('<span class="arr">→</span>')+'</div>'
+    : '<div class="cphint">구간을 추가하지 않으면 "완료" 1개만 측정돼요.</div>';
+  $('cpChips').querySelectorAll('[data-addcp]').forEach(b=> b.addEventListener('click',()=>{ cps.push(b.dataset.addcp); afterCpChange(); }));
+  $('cpChips').querySelector('[data-customcp]').addEventListener('click',()=>{ const n=prompt('구간(지점) 이름'); if(n&&n.trim()){ cps.push(n.trim()); afterCpChange(); } });
+  $('activeCps').querySelectorAll('[data-delcp]').forEach(b=> b.addEventListener('click',()=>{ cps.splice(+b.dataset.delcp,1); afterCpChange(); }));
+}
+function afterCpChange(){ renderCps(); saveBuilder(); if(!running) renderLanes(); }
+
+// ---- lanes / timer ----
+function renderLanes(){
+  laneState=[]; let html=''; const c=checkpoints();
+  for(let i=0;i<runners;i++){
+    laneState.push({name:'', splits:[], ok:true, done:false});
+    html+='<div class="lane '+LANE[i]+'" data-i="'+i+'"><div class="badge">'+(i+1)+'</div>'+
+      '<div class="mid"><input class="nm" placeholder="테스터 이름(선택)" data-i="'+i+'"><div class="t">00.00</div><div class="splits"></div></div>'+
+      '<button class="fbtn" disabled data-i="'+i+'">'+esc(c[0])+'</button><button class="failx" data-i="'+i+'">실패</button></div>';
+  }
+  $('lanes').innerHTML=html;
+  $('lanes').querySelectorAll('.fbtn').forEach(b=> b.addEventListener('click',()=>tapSplit(+b.dataset.i)));
+  $('lanes').querySelectorAll('.failx').forEach(b=> b.addEventListener('click',()=>failLane(+b.dataset.i)));
+  $('lanes').querySelectorAll('.nm').forEach(inp=> inp.addEventListener('input',()=>{ laneState[+inp.dataset.i].name=inp.value; }));
+}
+function laneEls(i){ return $('lanes').querySelector('.lane[data-i="'+i+'"]'); }
+function start(){
+  if(running) return; clearRun();
+  startT=performance.now(); running=true;
+  $('startBtn').disabled=true; $('saveBtn').disabled=true;
+  $('status').textContent='측정 중… 지점 통과 시 버튼을 탭하세요';
+  $('lanes').querySelectorAll('.lane').forEach(l=>l.classList.add('armed'));
+  $('lanes').querySelectorAll('.fbtn').forEach(b=>b.disabled=false);
+  tick();
+}
+function tick(){ if(!running)return; const now=performance.now(); laneState.forEach((s,i)=>{ if(!s.done&&s.ok!==false) laneEls(i).querySelector('.t').textContent=fmt(now-startT); }); rafId=requestAnimationFrame(tick); }
+function tapSplit(i){
+  const s=laneState[i]; if(!running||s.done||s.ok===false)return;
+  const c=checkpoints(), idx=s.splits.length, t=performance.now()-startT;
+  s.splits.push({pt:c[idx],time:t}); renderLaneSplits(i);
+  const e=laneEls(i), fb=e.querySelector('.fbtn');
+  if(idx+1>=c.length){ s.done=true; e.classList.remove('armed'); fb.disabled=true; fb.textContent='완주✓'; e.querySelector('.t').textContent=fmt(t); }
+  else fb.textContent=c[idx+1];
+  checkDone();
+}
+function renderLaneSplits(i){ const s=laneState[i]; laneEls(i).querySelector('.splits').innerHTML=s.splits.map((sp,k)=>{ const d=k===0?sp.time:(sp.time-s.splits[k-1].time); return '<span class="sp"><b>'+esc(sp.pt)+'</b> '+fmt(sp.time)+' <i>(+'+fmt(d)+')</i></span>'; }).join(''); }
+function failLane(i){
+  const s=laneState[i]; s.ok=s.ok===false?true:false; const e=laneEls(i), fb=e.querySelector('.fbtn'), c=checkpoints();
+  if(s.ok===false){ e.classList.add('failed'); e.classList.remove('armed'); fb.disabled=true; e.querySelector('.t').textContent='실패'; }
+  else { s.done=false; e.classList.remove('failed'); e.querySelector('.t').textContent='00.00'; fb.textContent=c[s.splits.length]||c[0]; if(running){ e.classList.add('armed'); fb.disabled=false; } }
+  checkDone();
+}
+function checkDone(){ if(laneState.every(s=>s.done||s.ok===false)){ running=false; cancelAnimationFrame(rafId); $('status').textContent='측정 완료 — 저장하세요'; $('saveBtn').disabled=false; } }
+function clearRun(){ running=false; if(rafId)cancelAnimationFrame(rafId); startT=null; const c=checkpoints();
+  laneState.forEach((s,i)=>{ s.splits=[]; s.ok=true; s.done=false; const e=laneEls(i); if(e){ e.classList.remove('armed','failed'); e.querySelector('.t').textContent='00.00'; e.querySelector('.splits').innerHTML=''; const fb=e.querySelector('.fbtn'); fb.disabled=true; fb.textContent=c[0]; } });
+  $('startBtn').disabled=false; $('saveBtn').disabled=true;
+}
+function resetRun(){ clearRun(); $('status').textContent='시작을 누르면 동시에 측정됩니다'; }
+
+function snapshotFields(){ return fields.map(f=> f.special==='rh'?{label:f.label,special:'rh',heights:(f.heights||[]).slice()}:{label:f.label,unit:f.unit,value:f.value,custom:!!f.custom}); }
+function saveRun(){
+  if(!laneState.some(s=>s.splits.length>0||s.ok===false)){ alert('측정된 기록이 없어요.'); return; }
+  const runs=loadRuns();
+  const results=laneState.map((s,i)=>({ lane:i+1,name:(s.name||'').trim(),ok:s.ok!==false,splits:s.splits.map(x=>({pt:x.pt,time:x.time})),time:(s.splits.length?s.splits[s.splits.length-1].time:null) }))
+                         .filter(r=> r.splits.length>0||r.ok===false);
+  runs.unshift({ ts:Date.now(), type:testType, cps:checkpoints().slice(), fields:snapshotFields(), results });
+  saveRuns(runs);
+  $('status').textContent='저장됨! 같은 세팅으로 계속 측정하거나 세팅을 바꾸세요';
+  resetRun(); renderRecords();
+}
+
+// ---- records ----
+function cfgKey(fieldsArr){ if(!fieldsArr||!fieldsArr.length)return '(세팅 없음)'; return fieldsArr.map(f=> f.special==='rh'?('높이['+(f.heights||[]).join('/')+']'):((f.label||'?')+(f.value===''||f.value==null?'':f.value)+(f.unit||''))).join('·'); }
+function renderRecords(){
+  const runs=loadRuns().filter(r=> recFilter==='all'||r.type===recFilter);
+  if(!runs.length){ $('records').innerHTML='<div class="empty">저장된 기록이 없어요.<br>측정 탭에서 런을 저장하면 시뮬레이션(측정 회차)별로 표시됩니다.</div>'; return; }
+  $('records').innerHTML=runs.map(r=>{
+    const cps=r.cps||['완료'];
+    const finals=[]; let total=0; const cpT=cps.map(()=>[]);
+    r.results.forEach(x=>{ total++; if(x.ok&&x.time!=null){ finals.push(x.time); (x.splits||[]).forEach((sp,ci)=>{ if(cpT[ci])cpT[ci].push(sp.time); }); } });
+    const succ=total?Math.round((finals.length/total)*100):0;
+    const label=(r.type==='uphill'?'🟩 업힐':'🟦 링')+'  '+cfgKey(r.fields);
+    const d=new Date(r.ts),p=n=>String(n).padStart(2,'0');
+    const ds=(d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes());
+    const cpLine=cps.map((c,ci)=>esc(c)+' <b>'+fmt(avgOf(cpT[ci]))+'</b>').join(' &nbsp;→&nbsp; ');
+    let lines='';
+    r.results.forEach(x=>{ const sp=(x.ok&&x.splits&&x.splits.length)?x.splits.map(s=>esc(s.pt)+' '+fmt(s.time)).join(' → '):(x.ok?fmt(x.time):'<span class="fail">실패</span>');
+      lines+='<div class="runline"><span class="rn">'+esc(x.name||('레인'+x.lane))+'</span><span class="rt">'+sp+'</span><button class="delone" data-ts="'+r.ts+'" data-lane="'+x.lane+'">✕</button></div>'; });
+    return '<div class="grp"><div class="gh"><span class="gt">'+esc(label)+'</span>'+
+      '<span class="ghr"><span class="gtime">'+ds+' · '+total+'명</span><button class="delgrp" data-ts="'+r.ts+'">시뮬 삭제</button></span></div>'+
+      '<div class="stat"><span>완료 평균 <b>'+fmt(avgOf(finals))+'</b></span><span>최소 <b>'+fmt(finals.length?Math.min(...finals):null)+'</b></span><span>최대 <b>'+fmt(finals.length?Math.max(...finals):null)+'</b></span><span>성공률 <b>'+succ+'%</b></span></div>'+
+      '<div class="cpavg">구간 평균&nbsp;&nbsp;'+cpLine+'</div>'+lines+'</div>';
+  }).join('');
+  $('records').querySelectorAll('.delgrp').forEach(b=> b.addEventListener('click',()=>{ if(confirm('이 시뮬레이션 기록 전체를 삭제할까요?')){ saveRuns(loadRuns().filter(r=>r.ts!==+b.dataset.ts)); renderRecords(); } }));
+  $('records').querySelectorAll('.delone').forEach(b=> b.addEventListener('click',()=>{ const ts=+b.dataset.ts,lane=+b.dataset.lane; const arr=loadRuns().map(r=> r.ts===ts?Object.assign({},r,{results:r.results.filter(x=>x.lane!==lane)}):r).filter(r=>r.results.length>0); saveRuns(arr); renderRecords(); }));
+}
+function exportCSV(){
+  const runs=loadRuns(); if(!runs.length){ alert('기록이 없어요'); return; }
+  let rows=[['일시','종류','세팅','레인','테스터','구간','누적시간(초)','구간소요(초)','성공여부']];
+  runs.slice().reverse().forEach(r=>{ const ds=new Date(r.ts).toLocaleString(); const ck=cfgKey(r.fields); const tp=r.type==='uphill'?'업힐':'링';
+    r.results.forEach(x=>{ if(x.ok&&x.splits&&x.splits.length){ x.splits.forEach((s,k)=>{ const del=k===0?s.time:(s.time-x.splits[k-1].time); rows.push([ds,tp,ck,x.lane,x.name||'',s.pt,(s.time/1000).toFixed(2),(del/1000).toFixed(2),'성공']); }); } else rows.push([ds,tp,ck,x.lane,x.name||'','','','','실패']); }); });
+  const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='테스트기록.csv'; a.click();
+}
+
+// ---- wire ----
+$('typeSeg').querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>{ $('typeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); switchType(b.dataset.t); }));
+$('cntSeg').querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>{ runners=+b.dataset.n; $('cntSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); renderLanes(); resetRun(); }));
+$('startBtn').addEventListener('click',start); $('saveBtn').addEventListener('click',saveRun); $('resetBtn').addEventListener('click',resetRun);
+$('csvBtn').addEventListener('click',exportCSV);
+$('clrBtn').addEventListener('click',()=>{ if(confirm('모든 기록을 삭제할까요?')){ saveRuns([]); renderRecords(); } });
+$('recFilter').querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>{ recFilter=b.dataset.f; $('recFilter').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); renderRecords(); }));
+document.querySelectorAll('nav button').forEach(b=> b.addEventListener('click',()=>{ document.querySelectorAll('.view').forEach(s=>s.classList.remove('active')); document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active')); $('v-'+b.dataset.v).classList.add('active'); b.classList.add('active'); if(b.dataset.v==='rec') renderRecords(); }));
+
+// boot
+(function(){ const b=builder[testType]||{}; fields=(b.fields||[]).map(f=>Object.assign({},f,f.heights?{heights:f.heights.slice()}:{})); cps=(b.cps||[]).slice(); renderCfg(); renderCps(); renderLanes(); renderRecords(); })();
+
+// 2Q 통합 페이지 임베드용: ?type=uphill|ring (해당 종류로 고정, 상단 토글 숨김)
+(function(){ const t=new URLSearchParams(location.search).get('type');
+  if(t==='uphill'||t==='ring'){ const btn=document.querySelector('#typeSeg button[data-t="'+t+'"]'); if(btn){ document.querySelectorAll('#typeSeg button').forEach(x=>x.classList.toggle('on',x===btn)); switchType(t); } const seg=document.getElementById('typeSeg'); if(seg) seg.style.display='none'; }
+})();
+</script>
+</body>
+</html>

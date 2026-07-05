@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>바이킹 시소 계산기</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--text:#f5f5f7;--muted:#9a9aab;--line:#26263a;
+        --a:#ff5c5c;--b:#3aa0ff;--accent:#37d67a;--gold:#ffd54a;}
+  html,body{height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;}
+  body{padding:env(safe-area-inset-top) 12px calc(16px+env(safe-area-inset-bottom));max-width:720px;margin:0 auto;}
+  header{text-align:center;padding:12px 0 6px;}
+  header h1{font-size:clamp(18px,5vw,24px);font-weight:800;}
+  header .sub{color:var(--muted);font-size:12px;margin-top:3px;}
+  .const{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;}
+  .const .r{display:flex;align-items:center;gap:10px;}
+  .const label{flex:1;font-size:14px;}
+  .const input{width:90px;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:15px;text-align:center;}
+  .const .hint{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.5;}
+  .players{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pcard{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:12px;}
+  .pcard.pa{border-color:var(--a);} .pcard.pb{border-color:var(--b);}
+  .pcard h2{font-size:16px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .dot{width:12px;height:12px;border-radius:50%;} .pa .dot{background:var(--a);} .pb .dot{background:var(--b);}
+  .fld{margin-bottom:9px;}
+  .fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .fld input{width:100%;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-size:16px;text-align:center;}
+  .out{margin-top:6px;border-top:1px dashed var(--line);padding-top:10px;}
+  .outrow{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:14px;}
+  .outrow .k{color:var(--muted);}
+  .outrow .v{font-weight:800;font-size:19px;font-variant-numeric:tabular-nums;}
+  .outrow .v small{font-size:12px;color:var(--muted);font-weight:600;}
+  .big{font-size:22px;}
+  .warn{background:#3a2a12;border:1px solid #6a4b1b;color:#ffcf87;border-radius:10px;padding:9px 11px;font-size:12px;margin-top:8px;line-height:1.5;display:none;}
+  .warn.on{display:block;}
+  .viz{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;}
+  .viz h3{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .note{background:#12121c;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px;color:var(--muted);font-size:12px;line-height:1.6;}
+  .note b{color:var(--text);}
+</style>
+</head>
+<body>
+  <header>
+    <h1>바이킹 시소 계산기</h1>
+    <div class="sub">두 선수의 리치·시작 자세로 단/지지대 세팅값 계산</div>
+  </header>
+
+  <div class="const">
+    <div class="r"><label>손끝 목표 높이 (기준)</label><input id="target" type="number" value="260"></div>
+    <div class="r" style="margin-top:8px;"><label>단 조절 단위 (cm)</label><input id="stepDan" type="number" value="5"></div>
+    <div class="r" style="margin-top:8px;"><label>지지대 조절 단위 (cm)</label><input id="stepSup" type="number" value="3"></div>
+    <div class="hint">단(발판): 팔을 다 뻗은 손끝이 목표 높이에 닿도록 조절. 지지대: 시작 자세에 맞춰 조절. (단 5~75cm / 지지대 145~185cm 범위)</div>
+  </div>
+
+  <div class="players">
+    <div class="pcard pa" id="cardA">
+      <h2><span class="dot"></span>선수 A</h2>
+      <div class="fld"><label>신장 (cm) — 입력 시 자동 채움</label><input class="height" type="number" placeholder="예: 185"></div>
+      <div class="fld"><label>최대 리치 (cm)</label><input class="reach" type="number" placeholder="예: 220"></div>
+      <div class="fld"><label>시작 자세 높이 (cm)</label><input class="startp" type="number" placeholder="예: 101.5"></div>
+      <div class="out">
+        <div class="outrow"><span class="k">단 높이</span><span class="v big"><span class="dan">–</span><small> cm</small></span></div>
+        <div class="outrow"><span class="k">지지대 높이</span><span class="v big"><span class="sup">–</span><small> cm</small></span></div>
+        <div class="outrow"><span class="k">손끝 도달 높이</span><span class="v"><span class="tip">–</span><small> cm</small></span></div>
+      </div>
+      <div class="warn"></div>
+    </div>
+
+    <div class="pcard pb" id="cardB">
+      <h2><span class="dot"></span>선수 B</h2>
+      <div class="fld"><label>신장 (cm) — 입력 시 자동 채움</label><input class="height" type="number" placeholder="예: 178"></div>
+      <div class="fld"><label>최대 리치 (cm)</label><input class="reach" type="number" placeholder="예: 205"></div>
+      <div class="fld"><label>시작 자세 높이 (cm)</label><input class="startp" type="number" placeholder="예: 100"></div>
+      <div class="out">
+        <div class="outrow"><span class="k">단 높이</span><span class="v big"><span class="dan">–</span><small> cm</small></span></div>
+        <div class="outrow"><span class="k">지지대 높이</span><span class="v big"><span class="sup">–</span><small> cm</small></span></div>
+        <div class="outrow"><span class="k">손끝 도달 높이</span><span class="v"><span class="tip">–</span><small> cm</small></span></div>
+      </div>
+      <div class="warn"></div>
+    </div>
+  </div>
+
+  <div class="viz">
+    <h3>시소 미리보기 (시작 자세 기준)</h3>
+    <svg id="see" viewBox="0 0 400 200" style="width:100%;height:auto;"></svg>
+  </div>
+
+  <div class="note">
+    <b>계산 근거:</b> 단 높이 = 목표 손끝높이 − 최대 리치 (조절 단위로 반올림, 5~75cm). 지지대 높이는 긱블 시뮬 자료의 리치↔지지대 기준표를 보간해 산출(조절 단위로 반올림, 145~185cm). 신장 입력 시 표준표(170cm→리치195/시작98.5 … 200cm→리치250/시작104.5)로 리치·시작 자세를 자동 채웁니다. 실제 측정값이 있으면 리치·시작 자세를 직접 입력하세요.<br><br>
+    <b>참고:</b> 원본 긱블 계산기는 비밀번호로 잠겨 있어, 공유된 시뮬 자료의 수치·원리로 재구성했습니다. 실제 한 케이스를 원본과 비교해 값이 맞는지 확인해 주세요.
+  </div>
+
+<script>
+(function(){
+  // 표준표: 신장 -> 리치, 시작자세
+  const HT=[[170,195,98.5],[175,200,99.5],[180,210,100.5],[185,220,101.5],[190,230,102.5],[195,240,103.5],[200,250,104.5]];
+  // 리치 -> 지지대 높이 (긱블 자료 기준표)
+  const SUP=[[195,182.1],[200,179.3],[210,173.1],[220,166.8],[230,160.5],[240,154.1],[250,147.6]];
+
+  function interp(tbl,x,col){
+    const xs=tbl.map(r=>r[0]);
+    if(x<=xs[0]) return lin(tbl[0],tbl[1],x,col);
+    if(x>=xs[xs.length-1]) return lin(tbl[tbl.length-2],tbl[tbl.length-1],x,col);
+    for(let i=0;i<tbl.length-1;i++){ if(x>=tbl[i][0]&&x<=tbl[i+1][0]) return lin(tbl[i],tbl[i+1],x,col); }
+    return tbl[0][col];
+  }
+  function lin(p1,p2,x,col){ const t=(x-p1[0])/(p2[0]-p1[0]); return p1[col]+t*(p2[col]-p1[col]); }
+  function snap(v,step,lo,hi){ let s=lo+Math.round((v-lo)/step)*step; return Math.max(lo,Math.min(hi,s)); }
+  const num=el=> el.value===""?null:parseFloat(el.value);
+
+  function calc(card){
+    const h=card.querySelector('.height'), reach=card.querySelector('.reach'), startp=card.querySelector('.startp');
+    const target=parseFloat(document.getElementById('target').value)||260;
+    const stepDan=parseFloat(document.getElementById('stepDan').value)||5;
+    const stepSup=parseFloat(document.getElementById('stepSup').value)||3;
+    let R=num(reach), S=num(startp);
+    // 신장 자동 채움 (리치/시작 비어있을 때만)
+    const H=num(h);
+    if(H!=null){
+      if(reach.dataset.auto!=="0"&&(R==null||reach.dataset.auto==="1")){ R=Math.round(interp(HT,H,1)*10)/10; reach.value=R; reach.dataset.auto="1"; }
+      if(startp.dataset.auto!=="0"&&(S==null||startp.dataset.auto==="1")){ S=Math.round(interp(HT,H,2)*10)/10; startp.value=S; startp.dataset.auto="1"; }
+    }
+    const dEl=card.querySelector('.dan'), sEl=card.querySelector('.sup'), tEl=card.querySelector('.tip'), w=card.querySelector('.warn');
+    if(R==null){ dEl.textContent="–"; sEl.textContent="–"; tEl.textContent="–"; w.classList.remove('on'); return null; }
+    const danRaw=target-R;
+    const dan=snap(danRaw,stepDan,5,75);
+    const supRaw=interp(SUP,R,1);
+    const sup=snap(supRaw,stepSup,145,185);
+    const tip=R+dan;
+    dEl.textContent=dan; sEl.textContent=sup; tEl.textContent=tip;
+    let msg="";
+    if(danRaw<5||danRaw>75) msg="단 높이 범위(5~75cm)를 벗어나요. 리치를 확인하세요.";
+    if(Math.abs(tip-target)>2) msg=(msg?msg+" ":"")+"단 반올림으로 손끝 도달이 목표와 "+(tip-target>0?"+":"")+(tip-target).toFixed(0)+"cm 차이나요.";
+    if(msg){ w.textContent=msg; w.classList.add('on'); } else w.classList.remove('on');
+    return {R,S,dan,sup,tip};
+  }
+
+  function drawSeesaw(a,b){
+    const svg=document.getElementById('see');
+    if(!a||!b||a.S==null||b.S==null){ svg.innerHTML='<text x="200" y="105" fill="#6a6a7e" font-size="12" text-anchor="middle">양쪽 시작 자세를 입력하면 표시됩니다</text>'; return; }
+    // beam ends at start-beam heights: dan+startpos
+    const ea=a.dan+a.S, eb=b.dan+b.S;
+    const maxH=Math.max(ea,eb,a.sup,b.sup,200);
+    const sc=150/maxH, base=180;
+    const y=v=>base-v*sc;
+    const pivotH=(a.sup+b.sup)/2;
+    svg.innerHTML=
+      '<line x1="20" y1="'+base+'" x2="380" y2="'+base+'" stroke="#26263a" stroke-width="2"/>'+
+      '<line x1="200" y1="'+base+'" x2="200" y2="'+y(pivotH)+'" stroke="#555" stroke-width="6"/>'+
+      '<line x1="70" y1="'+y(ea)+'" x2="330" y2="'+y(eb)+'" stroke="#888" stroke-width="5"/>'+
+      '<circle cx="70" cy="'+y(ea)+'" r="8" fill="#ff5c5c"/>'+
+      '<circle cx="330" cy="'+y(eb)+'" r="8" fill="#3aa0ff"/>'+
+      '<text x="70" y="'+(y(ea)-12)+'" fill="#ff5c5c" font-size="11" text-anchor="middle">A '+ea.toFixed(0)+'</text>'+
+      '<text x="330" y="'+(y(eb)-12)+'" fill="#3aa0ff" font-size="11" text-anchor="middle">B '+eb.toFixed(0)+'</text>'+
+      '<rect x="55" y="'+y(a.dan)+'" width="30" height="'+(base-y(a.dan))+'" fill="#2a1416" stroke="#ff5c5c"/>'+
+      '<rect x="315" y="'+y(b.dan)+'" width="30" height="'+(base-y(b.dan))+'" fill="#14212a" stroke="#3aa0ff"/>';
+  }
+
+  function recalc(){ const a=calc(document.getElementById('cardA')); const b=calc(document.getElementById('cardB')); drawSeesaw(a,b); }
+
+  document.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      if(inp.classList.contains('reach')||inp.classList.contains('startp')) inp.dataset.auto="0";
+      if(inp.classList.contains('height')){ // 신장 다시 치면 자동 채움 재활성
+        const card=inp.closest('.pcard');
+        card.querySelector('.reach').dataset.auto="1"; card.querySelector('.startp').dataset.auto="1";
+      }
+      recalc();
+    });
+  });
+  recalc();
+})();
+</script>
+</body>
+</html>
