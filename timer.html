@@ -480,9 +480,17 @@
           : '<div class="line"><span class="pnm">성공</span><span class="ppt">'+r.reps+'회</span></div>';
         if(r.splits && r.splits.length){
           body += '<div class="line" style="border-top:1px dashed #26263a;margin-top:4px;padding-top:6px;"><span class="pnm" style="color:#8a8a9e;font-size:12px">회차별 기록</span></div>';
-          body += r.splits.map((s,i)=>{
-            const over=s.time>(r.limit*1000);
-            return '<div class="line"><span class="pnm" style="color:#8a8a9e;font-size:13px">'+(i+1)+'회'+(s.side!=null?(s.side===0?' 🔴A':' 🔵B'):'')+'</span><span class="ptm"'+(over?' style="color:#ff9aa5"':'')+'>'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+'</span></div>';
+          let n=0;
+          body += r.splits.map((s)=>{
+            if(s.marker){
+              const txt = s.marker==='weight' ? ('⚖️ 무게 '+s.value+'kg로 변경') : ('⏱️ 제한시간 '+(s.value/1000).toFixed(1).replace(/\.0$/,'')+'초로 변경');
+              return '<div class="line"><span class="pnm" style="color:#9a9ab0;font-size:12px">'+txt+'</span></div>';
+            }
+            n++;
+            const lim=(s.limit!=null?s.limit:(r.limit*1000));
+            const over=s.time>lim;
+            const meta=(s.weight!=null?(' <span style="color:#6a6a7e">· '+s.weight+'kg</span>'):'');
+            return '<div class="line"><span class="pnm" style="color:#8a8a9e;font-size:13px">'+n+'회'+(s.side!=null?(s.side===0?' 🔴A':' 🔵B'):'')+'</span><span class="ptm"'+(over?' style="color:#ff9aa5"':'')+'>'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+meta+'</span></div>';
           }).join('');
         }
       }
@@ -560,9 +568,11 @@
     let reps=0, repsAB=[0,0], active=0, weight=50, last3=null, splits=[];
     const clock=$('clock'), turnLabel=$('turnLabel'), graceLabel=$('graceLabel'),
           repsEl=$('reps'), doneBtn=$('doneBtn'), wVal=$('wVal'), splitBox=$('splitBox');
+    const wbox=document.querySelector('.wbox'), modeToggle=document.querySelector('.modeToggle');
 
     const fmtC=ms=>(Math.max(0,ms)/1000).toFixed(1);
     const showTime=ms=> clock.textContent=fmtC(ms);
+    const limStr=ms=>(ms/1000).toFixed(1).replace(/\.0$/,'');
     function updTurn(){
       if(mode==="viking"){ turnLabel.style.display="block"; turnLabel.textContent=(active===0?"🔴 A 차례":"🔵 B 차례"); }
       else turnLabel.style.display="none";
@@ -570,51 +580,63 @@
     function updReps(){ repsEl.textContent = mode==="viking" ? ("A "+repsAB[0]+"회 · B "+repsAB[1]+"회") : ("성공 "+reps+"회"); }
     function renderSplits(){
       if(!splits.length){ splitBox.innerHTML=""; return; }
-      splitBox.innerHTML=splits.map((s,i)=>i).reverse().map(i=>{
-        const s=splits[i], over=s.time>limitMs;
-        const who=s.side!=null?(s.side===0?'🔴A ':'🔵B '):'';
-        return '<div class="splititem'+(over?' over':'')+'"><span class="sn">'+(i+1)+'회 '+who+'</span><span class="st">'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+'</span></div>';
-      }).join('');
+      let n=splits.filter(s=>!s.marker).length;
+      const rows=[];
+      for(let i=splits.length-1;i>=0;i--){
+        const s=splits[i];
+        if(s.marker){
+          const txt = s.marker==='weight' ? ('⚖️ 무게 '+s.value+'kg 변경') : ('⏱️ 제한 '+limStr(s.value)+'초 변경');
+          rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">'+txt+'</span><span class="st"></span></div>');
+        } else {
+          const idx=n; n--;
+          const over=s.time>s.limit;
+          const who=s.side!=null?(s.side===0?'🔴A ':'🔵B '):'';
+          const meta=(s.weight!=null?(' · '+s.weight+'kg'):'');
+          rows.push('<div class="splititem'+(over?' over':'')+'"><span class="sn">'+idx+'회 '+who+'</span><span class="st">'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+meta+'</span></div>');
+        }
+      }
+      splitBox.innerHTML=rows.join('');
     }
 
-    function setMode(m){ mode=m; document.querySelectorAll('.mt').forEach(b=>b.classList.toggle('active',b.dataset.m===m)); doneBtn.style.display = m==="viking"?"":"none"; hardReset(); }
-    function setLimit(s){ limitMs=s*1000; document.querySelectorAll('.lim').forEach(b=>b.classList.toggle('active',+b.dataset.s===s)); if(!running) showTime(limitMs); }
+    function setMode(m){
+      mode=m;
+      document.querySelectorAll('.mt').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
+      wbox.style.display = m==="viking" ? "" : "none";   // 무게는 바이킹 전용
+      hardReset();
+    }
+    function setLimit(s){
+      limitMs=s*1000;
+      document.querySelectorAll('.lim').forEach(b=>b.classList.toggle('active',+b.dataset.s===s));
+      if(running){ splits.push({marker:'limit', value:limitMs}); renderSplits(); } // 기록 유지, 변경만 남김
+      else showTime(limitMs);
+    }
 
     function start(){
       grace=false; graceLabel.textContent=""; clock.classList.remove('grace','warn');
       startT=performance.now(); running=true; last3=null; pausedElapsed=null; doneBtn.disabled=false;
-      splits=[]; renderSplits();
+      reps=0; repsAB=[0,0]; active=0; splits=[]; renderSplits();
       updTurn(); updReps(); if(raf)cancelAnimationFrame(raf); tick();
     }
     function tick(){
       if(!running) return;
       const elapsed=performance.now()-startT, rem=limitMs-elapsed;
-      if(mode==="sisyphus"){
+      // 시지프스·바이킹 공통: 수동 완료 + 0초 이후 유예/초과(딜레이 없이 완료 시 기록)
+      if(!grace){
         if(rem<=0){
-          // 시간이 다 되면 자동으로 횟수 +1 후 제한시간부터 다시 카운트다운
-          splits.push({time:limitMs, side:null});
-          reps++;
-          startT=performance.now(); last3=null;
-          clock.classList.remove('warn'); beep(880,0.15);
-          updReps(); renderSplits();
+          grace=true; clock.classList.add('grace'); clock.classList.remove('warn');
+          graceLabel.textContent = mode==="viking" ? "유예 — 완료 시 재개" : "제한시간 초과 — 완료를 누르세요";
+          clock.textContent="0.0"; beep(220,0.4);
         } else {
           showTime(rem); const s=Math.ceil(rem/1000);
           if(rem<=5000){ clock.classList.add('warn'); if(s!==last3){ last3=s; beep(700,0.14); } } else clock.classList.remove('warn');
         }
-        raf=requestAnimationFrame(tick); return;
-      }
-      // 바이킹: 수동 완료 + 유예
-      if(!grace){
-        if(rem<=0){ grace=true; clock.classList.add('grace'); clock.classList.remove('warn'); graceLabel.textContent="유예 — 완료 시 재개"; clock.textContent="0.0"; beep(220,0.4); }
-        else { showTime(rem); const s=Math.ceil(rem/1000);
-          if(rem<=5000){ clock.classList.add('warn'); if(s!==last3){ last3=s; beep(700,0.14); } } else clock.classList.remove('warn'); }
       } else { clock.textContent="+"+((elapsed-limitMs)/1000).toFixed(1); }
       raf=requestAnimationFrame(tick);
     }
     function done(){
       if(!running) return;
       const repTime=performance.now()-startT;
-      splits.push({time:repTime, side: mode==="viking"?active:null});
+      splits.push({time:repTime, side: mode==="viking"?active:null, weight: mode==="viking"?weight:null, limit:limitMs});
       if(mode==="viking"){ repsAB[active]++; active=1-active; } else reps++;
       grace=false; graceLabel.textContent=""; clock.classList.remove('grace','warn');
       startT=performance.now(); last3=null; beep(880,0.12); updTurn(); updReps(); renderSplits();
@@ -636,15 +658,18 @@
       saveShot();
     }
     function saveShot(){
-      const total = mode==="viking" ? (repsAB[0]+repsAB[1]) : reps;
-      if(total<=0) return;
+      const repEntries=splits.filter(s=>!s.marker);
+      if(!repEntries.length) return;
       const rec={ ts:Date.now(), mode, limit:Math.round(limitMs/100)/10, weight };
       if(mode==="viking"){ rec.a=repsAB[0]; rec.b=repsAB[1]; } else rec.reps=reps;
-      rec.splits=splits.map(s=>({time:s.time, side:s.side}));
+      rec.splits=splits.map(s=> s.marker?({marker:s.marker,value:s.value}):({time:s.time, side:s.side, weight:s.weight, limit:s.limit}));
       const arr=load(K.shots,[]); arr.unshift(rec); save(K.shots,arr);
       renderHist();
     }
-    function setWeight(w){ weight=Math.max(0,w); wVal.textContent=weight+" kg"; }
+    function setWeight(w, log){
+      weight=Math.max(0,w); wVal.textContent=weight+" kg";
+      if(log && running && mode==="viking"){ splits.push({marker:'weight', value:weight}); renderSplits(); } // 기록 유지, 증량만 남김
+    }
 
     document.querySelectorAll('.mt').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
     document.querySelectorAll('.lim').forEach(b=>b.addEventListener('click',()=>{ $('limCustom').value=""; setLimit(+b.dataset.s); }));
@@ -654,9 +679,12 @@
     $('shotPause').addEventListener('click',togglePause);
     $('shotReset').addEventListener('click',hardReset);
     $('shotFail').addEventListener('click',fail);
-    $('wDown').addEventListener('click',()=>setWeight(weight-5));
-    $('wUp').addEventListener('click',()=>setWeight(weight+5));
+    $('wDown').addEventListener('click',()=>setWeight(weight-5,true));
+    $('wUp').addEventListener('click',()=>setWeight(weight+5,true));
     setMode("sisyphus"); setLimit(30); setWeight(50);
+
+    // 임베드에서 종류 고정 시 상단 모드 토글 숨김 (2Q 통합용)
+    initShot._embed=function(m){ if(modeToggle) modeToggle.style.display='none'; setMode(m); };
   }
 
   // wire up
@@ -682,6 +710,7 @@
       const nv=document.querySelector('nav'); if(nv) nv.style.display='none';
       switchView('shot');
       const mb=document.querySelector('.mt[data-m="'+e+'"]'); if(mb) mb.click();
+      const mtg=document.querySelector('.modeToggle'); if(mtg) mtg.style.display='none'; // 종류 고정: 모드 토글 숨김
     } else if(e==='race'){
       const sb=document.querySelector('nav button[data-v="shot"]'); if(sb) sb.style.display='none';
       switchView('race');
