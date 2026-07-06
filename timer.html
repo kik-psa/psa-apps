@@ -274,7 +274,7 @@
 
 <script>
 (function(){
-  const K = { teams:"sb_teams_v2", lanes:"sb_lanes_v2", pts:"sb_pts_v2",
+  const K = { teams:"sb_teams_v3", lanes:"sb_lanes_v2", pts:"sb_pts_v2",
               rounds:"sb_rounds_v2", cur:"sb_cur_v2", total:"sb_total_v2", shots:"sb_shots_v2" };
   const LANE_TYPES = ["고깔(부저)","허들","업힐","링","일반"];
 
@@ -284,9 +284,9 @@
 
   let teams = load(K.teams, [
     {name:"대한민국", color:"#ff5c5c"},
-    {name:"미국", color:"#3aa0ff"},
-    {name:"일본", color:"#37d67a"},
-    {name:"브라질", color:"#ffb020"}
+    {name:"호주", color:"#ffb020"},
+    {name:"일본", color:"#3aa0ff"},
+    {name:"몽골", color:"#37d67a"}
   ]);
   let lanes = load(K.lanes, ["고깔(부저)","허들","업힐","링"]);
   let pts = load(K.pts, [4,3,2,1]);
@@ -312,7 +312,7 @@
   }
   function buildTracks(){
     $('tracks').innerHTML=""; els.length=0;
-    const defaults = load("sb_lastpick", ["","","",""]);
+    const defaults = load("sb_lastpick_v2", ["대한민국","호주","일본","몽골"]);
     for(let i=0;i<4;i++){
       const row=document.createElement('div');
       row.className="track t"+(i+1);
@@ -333,7 +333,7 @@
             spb=row.querySelector('.splitbtn'), spl=row.querySelector('.splits');
       btn.addEventListener('click',()=>finish(i));
       spb.addEventListener('click',()=>splitTrack(i));
-      sel.addEventListener('change',()=> save("sb_lastpick", els.map(e=>e.sel.value)));
+      sel.addEventListener('change',()=> save("sb_lastpick_v2", els.map(e=>e.sel.value)));
       els.push({row, sel, time:row.querySelector('.time'), res:row.querySelector('.res'), btn, spb, spl, splits:[]});
     }
     updRoundTag();
