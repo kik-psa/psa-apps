@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>무한계단 시뮬레이션</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--text:#f5f5f7;--muted:#9a9aab;--line:#26263a;--accent:#37d67a;--gold:#ffd54a;--red:#ff5c5c;--blue:#3aa0ff;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",Roboto,sans-serif;overscroll-behavior:none;}
+  body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);}
+  header{text-align:center;padding:8px 12px 4px;}
+  header h1{font-size:clamp(16px,4.4vw,20px);font-weight:800;}
+  header .sub{color:var(--muted);font-size:12px;margin-top:2px;}
+  main{flex:1;overflow-y:auto;min-height:0;}
+  .view{display:none;padding:8px 12px 14px;} .view.active{display:block;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .card h3{font-size:14px;margin-bottom:10px;}
+  .card .hint{color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5;}
+  label.fl{font-size:13px;color:var(--muted);}
+  select,input[type=text],input[type=number]{background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-size:15px;width:100%;}
+  input[type=number]{text-align:center;}
+  .prowin{display:flex;gap:8px;align-items:center;margin-bottom:7px;}
+  .prowin .pnum{width:22px;text-align:center;color:var(--muted);font-weight:800;font-size:13px;flex-shrink:0;}
+  .schrow,.varrow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .schrow input{width:auto;flex:1;} .schrow .u{color:var(--muted);font-size:13px;white-space:nowrap;}
+  .varrow input{flex:1;}
+  .delx{background:#4a1f26;color:#ff9aa5;border:none;border-radius:8px;padding:9px 11px;font-weight:800;flex-shrink:0;}
+  .addbtn{width:100%;background:#22303a;color:#8fd6ff;border:1px dashed #35566a;border-radius:10px;padding:11px;font-weight:800;font-size:14px;}
+  .bigstart{width:100%;height:58px;border:none;border-radius:16px;background:var(--accent);color:#0a0a0f;font-size:18px;font-weight:900;margin-top:4px;}
+  .bigstart:active{transform:scale(.98);}
+  /* live */
+  .clock{text-align:center;font-variant-numeric:tabular-nums;font-weight:900;font-size:clamp(52px,17vw,96px);line-height:1;letter-spacing:-2px;margin:4px 0;}
+  .metrics{display:flex;gap:8px;margin-bottom:8px;}
+  .metrics>div{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;font-size:12px;color:var(--muted);}
+  .metrics b{display:block;font-size:22px;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:900;margin-top:2px;}
+  .metrics .lap b{color:var(--gold);}
+  #nextChange{text-align:center;color:var(--muted);font-size:12.5px;height:18px;margin-bottom:8px;}
+  .speednow{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:10px;font-size:13px;color:var(--muted);}
+  .speednow input{width:80px;}
+  .speednow button{background:var(--blue);color:#04121f;border:none;border-radius:8px;padding:9px 12px;font-weight:800;white-space:nowrap;}
+  .livebtns{display:flex;gap:8px;margin-bottom:10px;}
+  .livebtns button{flex:1;height:48px;border:none;border-radius:12px;font-weight:800;font-size:15px;background:#3a3a4c;color:var(--text);}
+  #splitBtn{background:#3a4a6a;color:#cfe3ff;} #endBtn{background:#4a1f26;color:#ff9aa5;}
+  .prow{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:7px;}
+  .prow.out{opacity:.7;border-color:#3a2b30;}
+  .prow .rn{flex:1;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .prow .rt{font-variant-numeric:tabular-nums;font-weight:800;color:var(--gold);font-size:13px;text-align:right;}
+  .prow .outbtn{background:#e63946;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;flex-shrink:0;}
+  .prow .undo{background:#2a2a3c;color:var(--muted);border:none;border-radius:10px;padding:8px 11px;font-weight:800;font-size:12px;flex-shrink:0;}
+  .splitbox{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
+  .splititem{display:flex;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;}
+  .splititem .sl{color:var(--muted);} .splititem .sr{font-variant-numeric:tabular-nums;font-weight:800;}
+  /* records */
+  .recbar{display:flex;gap:8px;margin-bottom:12px;}
+  .recbar button{flex:1;height:46px;border:none;border-radius:12px;font-weight:800;font-size:14px;}
+  #csvBtn{background:#22303a;color:#8fd6ff;} #clrBtn{background:#4a1f26;color:#ff9aa5;}
+  .rec{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  .rec .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .rec .rt{font-weight:800;font-size:15px;} .rec .rd{color:var(--muted);font-size:12px;}
+  .rec .meta{color:var(--muted);font-size:12px;margin-bottom:8px;line-height:1.6;}
+  .rec .line{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0;border-top:1px solid var(--line);}
+  .rec .line .nm{color:#cdd;} .rec .line .vv{font-variant-numeric:tabular-nums;font-weight:700;}
+  .delrec{background:#3a2226;color:#ff9aa5;border:none;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:800;}
+  .empty{color:var(--muted);text-align:center;padding:40px 12px;line-height:1.6;}
+  nav{display:flex;border-top:1px solid var(--line);background:#0d0d15;padding-bottom:env(safe-area-inset-bottom);}
+  nav button{flex:1;background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav button .ic{font-size:19px;} nav button.active{color:var(--accent);}
+</style>
+</head>
+<body>
+  <header>
+    <h1>무한계단 시뮬레이션</h1>
+    <div class="sub" id="status">팀·선수·속도 설정 후 시작</div>
+  </header>
+  <main>
+    <section class="view active" id="v-run">
+      <div id="setup">
+        <div class="card">
+          <h3>팀 / 선수 (6명)</h3>
+          <select id="teamSel" style="margin-bottom:10px;">
+            <option value="">— 팀(국가) 선택 —</option>
+            <option>대한민국</option><option>호주</option><option>일본</option><option>몽골</option>
+            <option>뉴질랜드</option><option>인도</option><option>사우디</option><option>우즈벡</option>
+          </select>
+          <div id="players"></div>
+        </div>
+        <div class="card">
+          <h3>속도 스케줄 (SPM · step per minute)</h3>
+          <div class="hint">계단 24개 = 1바퀴. 시작 속도와, 몇 분에 몇 SPM으로 올릴지 설정하면 시간에 따라 자동 적용돼요.</div>
+          <div class="schrow"><span class="u">시작</span><input id="startSpm" type="number" value="40"><span class="u">SPM</span></div>
+          <div id="schedList"></div>
+          <button class="addbtn" id="addSched">+ 속도 변경 추가</button>
+        </div>
+        <div class="card">
+          <h3>변수 (직접입력)</h3>
+          <div id="varList"></div>
+          <button class="addbtn" id="addVar">+ 변수 추가</button>
+        </div>
+        <button class="bigstart" id="startBtn">측정 시작</button>
+      </div>
+
+      <div id="live" style="display:none;">
+        <div class="clock" id="clock">00:00</div>
+        <div class="metrics">
+          <div>속도<b id="spmVal">40</b>SPM</div>
+          <div class="lap">바퀴<b id="lapVal">0</b></div>
+          <div>걸음<b id="stepVal">0</b></div>
+        </div>
+        <div id="nextChange"></div>
+        <div class="speednow"><span>지금 속도 변경</span><input id="nowSpm" type="number" placeholder="SPM"><button id="setSpm">적용</button></div>
+        <div class="livebtns"><button id="splitBtn">스플릿</button><button id="pauseBtn">일시정지</button><button id="endBtn">종료·저장</button></div>
+        <div id="liveplayers"></div>
+        <div class="splitbox" id="liveSplits"></div>
+      </div>
+    </section>
+
+    <section class="view" id="v-rec">
+      <div class="recbar"><button id="csvBtn">⬇ CSV 내보내기</button><button id="clrBtn">전체 삭제</button></div>
+      <div id="recs"></div>
+    </section>
+  </main>
+  <nav>
+    <button class="active" data-v="run"><span class="ic">🎡</span>측정</button>
+    <button data-v="rec"><span class="ic">📋</span>기록</button>
+  </nav>
+
+<script>
+(function(){
+  const K="stairs_sims_v1", STEPS_PER_LAP=24;
+  const $=id=>document.getElementById(id);
+  const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
+  const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const mmss=ms=>{const t=Math.max(0,ms),m=Math.floor(t/60000),s=Math.floor((t%60000)/1000);return String(m).padStart(2,'0')+":"+String(s).padStart(2,'0');};
+  const secs=ms=>(Math.max(0,ms)/1000).toFixed(1);
+
+  // ---- setup state ----
+  let schedRows=[];   // {min,spm} extra changes
+  let varRows=[];     // {name,value}
+  function renderPlayers(){
+    let h="";
+    for(let i=0;i<6;i++) h+='<div class="prowin"><span class="pnum">'+(i+1)+'</span><input type="text" class="pname" placeholder="선수 '+(i+1)+' 이름"></div>';
+    $('players').innerHTML=h;
+  }
+  function renderSched(){
+    $('schedList').innerHTML=schedRows.map((r,i)=>
+      '<div class="schrow"><input type="number" class="smin" data-i="'+i+'" value="'+(r.min)+'" placeholder="분"><span class="u">분 →</span><input type="number" class="sspm" data-i="'+i+'" value="'+(r.spm)+'" placeholder="SPM"><span class="u">SPM</span><button class="delx" data-i="'+i+'">✕</button></div>').join('');
+    $('schedList').querySelectorAll('.smin').forEach(el=>el.addEventListener('input',e=>schedRows[+e.target.dataset.i].min=+e.target.value||0));
+    $('schedList').querySelectorAll('.sspm').forEach(el=>el.addEventListener('input',e=>schedRows[+e.target.dataset.i].spm=+e.target.value||0));
+    $('schedList').querySelectorAll('.delx').forEach(el=>el.addEventListener('click',e=>{schedRows.splice(+e.target.dataset.i,1);renderSched();}));
+  }
+  function renderVars(){
+    $('varList').innerHTML=varRows.map((r,i)=>
+      '<div class="varrow"><input type="text" class="vname" data-i="'+i+'" value="'+esc(r.name)+'" placeholder="변수명"><input type="text" class="vval" data-i="'+i+'" value="'+esc(r.value)+'" placeholder="값"><button class="delx" data-i="'+i+'">✕</button></div>').join('');
+    $('varList').querySelectorAll('.vname').forEach(el=>el.addEventListener('input',e=>varRows[+e.target.dataset.i].name=e.target.value));
+    $('varList').querySelectorAll('.vval').forEach(el=>el.addEventListener('input',e=>varRows[+e.target.dataset.i].value=e.target.value));
+    $('varList').querySelectorAll('.delx').forEach(el=>el.addEventListener('click',e=>{varRows.splice(+e.target.dataset.i,1);renderVars();}));
+  }
+  $('addSched').addEventListener('click',()=>{schedRows.push({min:0,spm:50});renderSched();});
+  $('addVar').addEventListener('click',()=>{varRows.push({name:"",value:""});renderVars();});
+  renderPlayers(); renderSched(); renderVars();
+
+  // ---- run state ----
+  let running=false,startT=null,rafId=null,pausedElapsed=null,lastTs=null;
+  let steps=0, schedule=[], team="", players=[], vars=[], splits=[];
+  function curSPM(elapsedMs){ const em=elapsedMs/60000; let spm=schedule.length?schedule[0].spm:0; for(const s of schedule){ if(s.min<=em+1e-9) spm=s.spm; else break; } return spm; }
+  function nextChange(elapsedMs){ const em=elapsedMs/60000; for(const s of schedule){ if(s.min>em+1e-9) return s; } return null; }
+
+  function startRun(){
+    team=$('teamSel').value;
+    if(!team){ alert("팀(국가)을 선택하세요."); return; }
+    players=[...document.querySelectorAll('.pname')].map((el,i)=>({name:(el.value.trim()||("선수"+(i+1))), out:false, time:null, laps:null, spm:null}));
+    vars=varRows.filter(v=>v.name.trim()!=="").map(v=>({name:v.name.trim(),value:v.value.trim()}));
+    const base={min:0,spm:+$('startSpm').value||0};
+    schedule=[base,...schedRows.map(r=>({min:+r.min||0,spm:+r.spm||0}))].sort((a,b)=>a.min-b.min);
+    steps=0; splits=[]; startT=performance.now(); lastTs=null; pausedElapsed=null; running=true;
+    $('setup').style.display='none'; $('live').style.display='block';
+    $('status').textContent=team+" 측정 중";
+    renderLivePlayers(); renderLiveSplits();
+    if(rafId)cancelAnimationFrame(rafId); tick();
+  }
+  function tick(){
+    if(!running) return;
+    const now=performance.now(), elapsed=now-startT;
+    if(lastTs!=null){ const dt=now-lastTs; steps += curSPM(elapsed)*(dt/60000); }
+    lastTs=now;
+    const spm=curSPM(elapsed), laps=Math.floor(steps/STEPS_PER_LAP);
+    $('clock').textContent=mmss(elapsed);
+    $('spmVal').textContent=spm;
+    $('lapVal').textContent=laps;
+    $('stepVal').textContent=Math.floor(steps);
+    const nc=nextChange(elapsed);
+    $('nextChange').textContent = nc ? ("다음 속도 "+nc.spm+" SPM · "+mmss(nc.min*60000-elapsed)+" 후") : "설정된 다음 속도 변경 없음";
+    rafId=requestAnimationFrame(tick);
+  }
+  function elapsedNow(){ return running? performance.now()-startT : (pausedElapsed||0); }
+
+  function dropout(i){
+    const p=players[i]; if(p.out||!running) return;
+    const el=elapsedNow(), laps=Math.floor(steps/STEPS_PER_LAP), spm=curSPM(el);
+    p.out=true; p.time=el; p.laps=laps; p.spm=spm;
+    splits.push({type:'dropout', label:p.name+" 탈락", time:el, laps, spm});
+    renderLivePlayers(); renderLiveSplits();
+    if(players.every(x=>x.out)){ endRun(true); }
+  }
+  function undoOut(i){ const p=players[i]; if(!p.out)return; p.out=false; p.time=null; p.laps=null; p.spm=null;
+    splits=splits.filter(s=>!(s.type==='dropout'&&s.label===p.name+" 탈락")); renderLivePlayers(); renderLiveSplits(); }
+  function doSplit(){ if(!running)return; const el=elapsedNow(); splits.push({type:'split',label:'스플릿',time:el,laps:Math.floor(steps/STEPS_PER_LAP),spm:curSPM(el)}); renderLiveSplits(); }
+  function setSpeedNow(){ const v=+$('nowSpm').value; if(!(v>0))return; const el=elapsedNow(), min=el/60000;
+    schedule=schedule.filter(s=>s.min<min-1e-9); schedule.push({min,spm:v}); schedule.sort((a,b)=>a.min-b.min);
+    splits.push({type:'speed',label:'속도 '+v+' SPM',time:el,laps:Math.floor(steps/STEPS_PER_LAP),spm:v});
+    $('nowSpm').value=''; renderLiveSplits();
+  }
+  function togglePause(){
+    if(running){ running=false; if(rafId)cancelAnimationFrame(rafId); pausedElapsed=performance.now()-startT; $('pauseBtn').textContent='재개'; $('status').textContent=team+" 일시정지"; }
+    else { startT=performance.now()-pausedElapsed; lastTs=null; running=true; pausedElapsed=null; $('pauseBtn').textContent='일시정지'; $('status').textContent=team+" 측정 중"; tick(); }
+  }
+  function endRun(auto){
+    if(!running && pausedElapsed==null && !players.some(p=>p.out)) { resetToSetup(); return; }
+    running=false; if(rafId)cancelAnimationFrame(rafId);
+    const total=elapsedNow(), laps=Math.floor(steps/STEPS_PER_LAP);
+    const rec={ ts:Date.now(), team, vars, schedule:schedule.slice(),
+      totalTime:total, totalLaps:laps, totalSteps:Math.round(steps),
+      players:players.map(p=>({name:p.name,out:p.out,time:p.out?p.time:total,laps:p.out?p.laps:laps,spm:p.out?p.spm:curSPM(total)})),
+      splits:splits.slice() };
+    const arr=load(K,[]); arr.unshift(rec); save(K,arr);
+    resetToSetup(); renderRecs();
+    $('status').textContent=team+" 저장됨"+(auto?" (전원 탈락)":"");
+    switchView('rec');
+  }
+  function resetToSetup(){ running=false; if(rafId)cancelAnimationFrame(rafId); pausedElapsed=null; steps=0;
+    $('pauseBtn').textContent='일시정지'; $('live').style.display='none'; $('setup').style.display='block'; }
+
+  function renderLivePlayers(){
+    $('liveplayers').innerHTML=players.map((p,i)=> p.out
+      ? '<div class="prow out"><span class="rn">'+esc(p.name)+'</span><span class="rt">'+secs(p.time)+'초 · '+p.laps+'바퀴</span><button class="undo" data-i="'+i+'">취소</button></div>'
+      : '<div class="prow"><span class="rn">'+esc(p.name)+'</span><button class="outbtn" data-i="'+i+'">탈락</button></div>'
+    ).join('');
+    $('liveplayers').querySelectorAll('.outbtn').forEach(b=>b.addEventListener('click',()=>dropout(+b.dataset.i)));
+    $('liveplayers').querySelectorAll('.undo').forEach(b=>b.addEventListener('click',()=>undoOut(+b.dataset.i)));
+  }
+  function renderLiveSplits(){
+    const arr=splits.slice().reverse();
+    $('liveSplits').innerHTML=arr.map(s=>{
+      const ic=s.type==='dropout'?'🔻':(s.type==='speed'?'⚡':'⏱️');
+      return '<div class="splititem"><span class="sl">'+ic+' '+esc(s.label)+'</span><span class="sr">'+secs(s.time)+'초 · '+s.laps+'바퀴 · '+s.spm+'SPM</span></div>';
+    }).join('');
+  }
+
+  $('startBtn').addEventListener('click',startRun);
+  $('splitBtn').addEventListener('click',doSplit);
+  $('pauseBtn').addEventListener('click',togglePause);
+  $('endBtn').addEventListener('click',()=>endRun(false));
+  $('setSpm').addEventListener('click',setSpeedNow);
+
+  // ---- records ----
+  function varsStr(v){ return v&&v.length? v.map(x=>x.name+"="+x.value).join(", ") : "—"; }
+  function renderRecs(){
+    const arr=load(K,[]);
+    if(!arr.length){ $('recs').innerHTML='<div class="empty">저장된 기록이 없어요.<br>측정을 종료하면 자동 저장됩니다.</div>'; return; }
+    $('recs').innerHTML=arr.map(r=>{
+      const d=new Date(r.ts),p=n=>String(n).padStart(2,'0');
+      const ds=(d.getMonth()+1)+"/"+d.getDate()+" "+p(d.getHours())+":"+p(d.getMinutes());
+      const sched=r.schedule.map(s=>(s.min===0?'시작':s.min.toFixed(1)+'분')+' '+s.spm).join(' → ');
+      let body=r.players.map((x,i)=>'<div class="line"><span class="nm">'+(i+1)+'. '+esc(x.name)+(x.out?'':' <span style="color:#6a6a7e">(완주)</span>')+'</span><span class="vv">'+secs(x.time)+'초 · '+x.laps+'바퀴</span></div>').join('');
+      return '<div class="rec"><div class="rh"><span class="rt">🎡 '+esc(r.team)+'</span><span class="rd">'+ds+' <button class="delrec" data-ts="'+r.ts+'">✕</button></span></div>'+
+        '<div class="meta">총 '+secs(r.totalTime)+'초 · '+r.totalLaps+'바퀴('+r.totalSteps+'걸음)<br>속도: '+esc(sched)+' SPM<br>변수: '+esc(varsStr(r.vars))+'</div>'+body+'</div>';
+    }).join('');
+    $('recs').querySelectorAll('.delrec').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.a==="1"){ save(K,load(K,[]).filter(r=>r.ts!==+b.dataset.ts)); renderRecs(); return; }
+      b.dataset.a="1"; b.textContent="삭제?"; b.style.background="#e63946"; b.style.color="#fff";
+      setTimeout(()=>{ if(b&&b.dataset.a==="1"){ b.dataset.a="0"; b.textContent="✕"; b.style.background=""; b.style.color=""; } },3000);
+    }));
+  }
+  $('clrBtn').addEventListener('click',()=>{ if(confirm("모든 기록을 삭제할까요?")){ save(K,[]); renderRecs(); } });
+  $('csvBtn').addEventListener('click',()=>{
+    const arr=load(K,[]); if(!arr.length){ alert("기록이 없어요"); return; }
+    let rows=[['일시','팀','변수','속도스케줄(SPM)','선수','탈락순서','탈락여부','시간(초)','바퀴(탈락시)','SPM(탈락시)','최종총바퀴','최종시간(초)']];
+    arr.slice().reverse().forEach(r=>{
+      const ds=new Date(r.ts).toLocaleString(), vs=varsStr(r.vars), sc=r.schedule.map(s=>(s.min===0?'시작':s.min.toFixed(1)+'분')+':'+s.spm).join(' > ');
+      // 탈락 순서 = 탈락시간 오름차순(완주자는 맨 뒤)
+      const order=r.players.map((x,idx)=>({x,idx})).sort((a,b)=>{ if(a.x.out!==b.x.out) return a.x.out?-1:1; return a.x.time-b.x.time; });
+      order.forEach((o,k)=> rows.push([ds,r.team,vs,sc,o.x.name,(o.x.out?(k+1):''),(o.x.out?'탈락':'완주'),secs(o.x.time),o.x.laps,o.x.spm,r.totalLaps,secs(r.totalTime)]));
+    });
+    const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const b=new Blob([csv],{type:'text/csv'}),a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='무한계단_기록.csv'; a.click();
+  });
+
+  // ---- nav ----
+  function switchView(v){ document.querySelectorAll('.view').forEach(s=>s.classList.remove('active')); document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    $('v-'+v).classList.add('active'); document.querySelector('nav button[data-v="'+v+'"]').classList.add('active'); if(v==='rec') renderRecs(); }
+  document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.v)));
+  renderRecs();
+})();
+</script>
+</body>
+</html>
