@@ -120,6 +120,14 @@
   .mt{flex:1;background:#1c1c28;border:1px solid var(--line);color:var(--muted);border-radius:12px;padding:11px;font-weight:800;font-size:15px;}
   .mt.active{background:var(--accent);color:#0a0a0f;border-color:var(--accent);}
   .limitrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:14px;color:var(--muted);}
+  .optrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:13px;color:var(--muted);}
+  .optrow .opt{background:#1c1c28;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;}
+  .optrow .opt.active{background:#2f6f4a;border-color:var(--accent);color:#fff;}
+  .namerow{display:flex;gap:6px;align-items:center;margin-bottom:10px;}
+  .namerow .nlbl{font-size:16px;}
+  .namerow input{flex:1;min-width:0;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:14px;}
+  .histbar{margin-bottom:10px;}
+  .histbar button{width:100%;height:44px;border:none;border-radius:12px;background:#22303a;color:#8fd6ff;font-weight:800;font-size:14px;}
   .lim{background:#1c1c28;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 14px;font-weight:800;}
   .lim.active{background:#2f6f4a;border-color:var(--accent);color:#fff;}
   #limCustom{width:90px;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;text-align:center;font-size:14px;}
@@ -188,6 +196,7 @@
 
     <!-- HISTORY -->
     <section class="view" id="v-hist">
+      <div class="histbar"><button id="histCsv">⬇ 기록 CSV 내보내기</button></div>
       <div id="hist"></div>
     </section>
 
@@ -203,6 +212,15 @@
           <button class="lim" data-s="20">20초</button>
           <button class="lim active" data-s="30">30초</button>
           <input id="limCustom" type="number" placeholder="직접(초)">
+        </div>
+        <div class="optrow" id="doneModeRow">
+          <span>완료 후</span>
+          <button class="opt active" data-dm="auto">완료시 바로 시작</button>
+          <button class="opt" data-dm="manual">수동으로 시작</button>
+        </div>
+        <div class="namerow" id="nameRow">
+          <span class="nlbl">🔴</span><input id="nameA" type="text" placeholder="A 이름">
+          <span class="nlbl">🔵</span><input id="nameB" type="text" placeholder="B 이름">
         </div>
         <div class="turnLabel" id="turnLabel"></div>
         <div class="clock" id="clock">30.0</div>
@@ -488,9 +506,10 @@
           return ln;
         }).join('');
       } else {
+        const aN=esc(r.aName||'A'), bN=esc(r.bName||'B');
         head=(r.mode==='viking'?'바이킹':'시지프스')+' · '+r.limit+'초'+(r.weight?' · '+r.weight+'kg':'');
         body = r.mode==='viking'
-          ? '<div class="line"><span class="pnm">🔴 A</span><span class="ppt">'+r.a+'회</span></div><div class="line"><span class="pnm">🔵 B</span><span class="ppt">'+r.b+'회</span></div>'
+          ? '<div class="line"><span class="pnm">🔴 '+aN+'</span><span class="ppt">'+r.a+'회</span></div><div class="line"><span class="pnm">🔵 '+bN+'</span><span class="ppt">'+r.b+'회</span></div>'
           : '<div class="line"><span class="pnm">성공</span><span class="ppt">'+r.reps+'회</span></div>';
         if(r.splits && r.splits.length){
           body += '<div class="line" style="border-top:1px dashed #26263a;margin-top:4px;padding-top:6px;"><span class="pnm" style="color:#8a8a9e;font-size:12px">회차별 기록</span></div>';
@@ -504,7 +523,7 @@
             const lim=(s.limit!=null?s.limit:(r.limit*1000));
             const over=s.time>lim;
             const meta=(s.weight!=null?(' <span style="color:#6a6a7e">· '+s.weight+'kg</span>'):'');
-            return '<div class="line"><span class="pnm" style="color:#8a8a9e;font-size:13px">'+n+'회'+(s.side!=null?(s.side===0?' 🔴A':' 🔵B'):'')+'</span><span class="ptm"'+(over?' style="color:#ff9aa5"':'')+'>'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+meta+'</span></div>';
+            return '<div class="line"><span class="pnm" style="color:#8a8a9e;font-size:13px">'+n+'회'+(s.side!=null?(s.side===0?(' 🔴'+aN):(' 🔵'+bN)):'')+'</span><span class="ptm"'+(over?' style="color:#ff9aa5"':'')+'>'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+meta+'</span></div>';
           }).join('');
         }
       }
@@ -520,6 +539,32 @@
     if(type==='race'){ save(K.rounds, load(K.rounds,[]).filter(r=>r.ts!==ts)); renderBoard(); }
     else save(K.shots, load(K.shots,[]).filter(r=>r.ts!==ts));
     renderHist();
+  }
+  function shotCSV(){
+    const shots=load(K.shots,[]);
+    if(!shots.length){ alert('제한시간(시지프스/바이킹) 기록이 없어요.'); return; }
+    let rows=[['일시','종류','제한시간(초)','대상','회차','시간(초)','무게(kg)','초과','이벤트']];
+    shots.slice().reverse().forEach(r=>{
+      const ds=new Date(r.ts).toLocaleString(), kind=r.mode==='viking'?'바이킹':'시지프스';
+      const aN=r.aName||'A', bN=r.bName||'B';
+      if(r.splits && r.splits.length){
+        let n=0;
+        r.splits.forEach(s=>{
+          if(s.marker){
+            const ev=s.marker==='weight'?('무게 '+s.value+'kg 변경'):('제한 '+(s.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경');
+            rows.push([ds,kind,r.limit,'','','','','',ev]);
+          } else {
+            n++;
+            const tgt=r.mode==='viking'?(s.side===0?aN:bN):'성공';
+            const lim=(s.limit!=null?s.limit:(r.limit*1000));
+            rows.push([ds,kind,r.limit,tgt,n,(s.time/1000).toFixed(2),(s.weight!=null?s.weight:''),(s.time>lim?'Y':''),'']);
+          }
+        });
+      } else if(r.mode==='viking'){ rows.push([ds,kind,r.limit,aN,'','','','','합계 '+r.a+'회']); rows.push([ds,kind,r.limit,bN,'','','','','합계 '+r.b+'회']); }
+      else rows.push([ds,kind,r.limit,'성공','','','','','합계 '+r.reps+'회']);
+    });
+    const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const b=new Blob([csv],{type:'text/csv'}),a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='제한시간_기록.csv'; a.click();
   }
 
   /* ---------- SETTINGS ---------- */
@@ -580,19 +625,22 @@
     let mode="sisyphus", limitMs=30000;
     let startT=null, running=false, grace=false, raf=null, pausedElapsed=null;
     let reps=0, repsAB=[0,0], active=0, weight=50, last3=null, splits=[];
+    let doneMode="auto", nameA="A", nameB="B";
     const clock=$('clock'), turnLabel=$('turnLabel'), graceLabel=$('graceLabel'),
           repsEl=$('reps'), doneBtn=$('doneBtn'), wVal=$('wVal'), splitBox=$('splitBox');
     const wbox=document.querySelector('.wbox'), modeToggle=document.querySelector('.modeToggle');
     const wInc=$('wInc'), incEditor=$('incEditor'), wInput=$('wInput');
+    const nameRow=$('nameRow'), nameARef=$('nameA'), nameBRef=$('nameB');
+    const nm=s=> s===0?(nameA||"A"):(nameB||"B");
 
     const fmtC=ms=>(Math.max(0,ms)/1000).toFixed(1);
     const showTime=ms=> clock.textContent=fmtC(ms);
     const limStr=ms=>(ms/1000).toFixed(1).replace(/\.0$/,'');
     function updTurn(){
-      if(mode==="viking"){ turnLabel.style.display="block"; turnLabel.textContent=(active===0?"🔴 A 차례":"🔵 B 차례"); }
+      if(mode==="viking"){ turnLabel.style.display="block"; turnLabel.textContent=(active===0?("🔴 "+nm(0)+" 차례"):("🔵 "+nm(1)+" 차례")); }
       else turnLabel.style.display="none";
     }
-    function updReps(){ repsEl.textContent = mode==="viking" ? ("A "+repsAB[0]+"회 · B "+repsAB[1]+"회") : ("성공 "+reps+"회"); }
+    function updReps(){ repsEl.textContent = mode==="viking" ? (nm(0)+" "+repsAB[0]+"회 · "+nm(1)+" "+repsAB[1]+"회") : ("성공 "+reps+"회"); }
     function renderSplits(){
       if(!splits.length){ splitBox.innerHTML=""; return; }
       let n=splits.filter(s=>!s.marker).length;
@@ -605,7 +653,7 @@
         } else {
           const idx=n; n--;
           const over=s.time>s.limit;
-          const who=s.side!=null?(s.side===0?'🔴A ':'🔵B '):'';
+          const who=s.side!=null?(s.side===0?('🔴'+nm(0)+' '):('🔵'+nm(1)+' ')):'';
           const meta=(s.weight!=null?(' · '+s.weight+'kg'):'');
           rows.push('<div class="splititem'+(over?' over':'')+'"><span class="sn">'+idx+'회 '+who+'</span><span class="st">'+(s.time/1000).toFixed(2)+'초'+(over?' (초과)':'')+meta+'</span></div>');
         }
@@ -617,6 +665,7 @@
       mode=m;
       document.querySelectorAll('.mt').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
       wbox.style.display = m==="viking" ? "" : "none";   // 무게는 바이킹 전용
+      nameRow.style.display = m==="viking" ? "" : "none"; // A/B 이름은 바이킹 전용
       hardReset();
     }
     function setLimit(s){
@@ -653,8 +702,17 @@
       const repTime=performance.now()-startT;
       splits.push({time:repTime, side: mode==="viking"?active:null, weight: mode==="viking"?weight:null, limit:limitMs});
       if(mode==="viking"){ repsAB[active]++; active=1-active; } else reps++;
-      grace=false; graceLabel.textContent=""; clock.classList.remove('grace','warn');
-      startT=performance.now(); last3=null; beep(880,0.12); updTurn(); updReps(); renderSplits();
+      clock.classList.remove('grace','warn'); beep(880,0.12);
+      if(doneMode==="manual"){
+        // 완료 → 제한시간으로 리셋 후 정지. 시작 눌러야 다음 회차 진행
+        running=false; grace=false; if(raf)cancelAnimationFrame(raf);
+        pausedElapsed=0; last3=null; showTime(limitMs);
+        graceLabel.textContent="시작을 누르면 다음 회차";
+      } else {
+        // 완료시 바로 다음 회차 시작
+        grace=false; graceLabel.textContent=""; startT=performance.now(); last3=null;
+      }
+      updTurn(); updReps(); renderSplits();
     }
     function togglePause(){
       if(running){ running=false; if(raf)cancelAnimationFrame(raf); pausedElapsed=performance.now()-startT; }
@@ -700,7 +758,7 @@
       const repEntries=splits.filter(s=>!s.marker);
       if(!repEntries.length) return;
       const rec={ ts:Date.now(), mode, limit:Math.round(limitMs/100)/10, weight };
-      if(mode==="viking"){ rec.a=repsAB[0]; rec.b=repsAB[1]; } else rec.reps=reps;
+      if(mode==="viking"){ rec.a=repsAB[0]; rec.b=repsAB[1]; rec.aName=nm(0); rec.bName=nm(1); } else rec.reps=reps;
       rec.splits=splits.map(s=> s.marker?({marker:s.marker,value:s.value}):({time:s.time, side:s.side, weight:s.weight, limit:s.limit}));
       const arr=load(K.shots,[]); arr.unshift(rec); save(K.shots,arr);
       renderHist();
@@ -719,6 +777,9 @@
     $('wApply').addEventListener('click',()=>{ const v=parseInt(wInput.value); if(v>0) applyIncrease(v); else incEditor.classList.remove('on'); });
     $('wCancel').addEventListener('click',()=>incEditor.classList.remove('on'));
     wInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=parseInt(wInput.value); if(v>0) applyIncrease(v); } });
+    document.querySelectorAll('#doneModeRow .opt').forEach(b=>b.addEventListener('click',()=>{ doneMode=b.dataset.dm; document.querySelectorAll('#doneModeRow .opt').forEach(x=>x.classList.toggle('active',x===b)); }));
+    nameARef.addEventListener('input',e=>{ nameA=e.target.value.trim(); updTurn(); updReps(); renderSplits(); });
+    nameBRef.addEventListener('input',e=>{ nameB=e.target.value.trim(); updTurn(); updReps(); renderSplits(); });
     setMode("sisyphus"); setLimit(30); setWeight(50);
 
     // 임베드에서 종류 고정 시 상단 모드 토글 숨김 (2Q 통합용)
@@ -737,6 +798,7 @@
       alert("기록을 삭제했어요.");
     }
   });
+  $('histCsv').addEventListener('click',shotCSV);
   document.querySelectorAll('nav button').forEach(b=> b.addEventListener('click',()=>switchView(b.dataset.v)));
 
   buildTracks(); renderBoard(); renderHist(); initShot();
