@@ -97,13 +97,8 @@
         <span class="nlbl">🔵</span><input id="nameB" type="text" placeholder="B 이름">
       </div>
       <div class="cpbuild">
-        <span class="cptitle">측정 구간 (스플릿) — 추가한 순서대로 기록됩니다</span>
-        <button class="cpp" data-n="1구간">+1구간</button>
-        <button class="cpp" data-n="2구간">+2구간</button>
-        <button class="cpp" data-n="3구간">+3구간</button>
-        <button class="cpp" data-n="반환점">+반환점</button>
-        <button class="cpp" data-n="도착">+도착</button>
-        <input id="cpInput" type="text" placeholder="직접입력">
+        <span class="cptitle">측정 구간 이름 직접입력 (선택) — 비워두면 그냥 스플릿으로 기록돼요</span>
+        <input id="cpInput" type="text" placeholder="구간 이름 (예: 반환점)">
         <button id="cpAddBtn" class="cpp">추가</button>
         <div class="cpchips" id="cpChips"></div>
       </div>
@@ -172,7 +167,7 @@
   function updReps(){repsEl.textContent=nm(0)+" "+repsAB[0]+"회 · "+nm(1)+" "+repsAB[1]+"회";}
   function renderCur(){curSplitsEl.innerHTML=curSplits.map(s=>'<span class="cs">'+esc(s.name)+' '+sec(s.time)+'초</span>').join('');}
   function updDoneBtn(){doneBtn.style.display = doneMode==="manual" ? "" : "none";}
-  function updSplitLabel(){const btn=$('splitBtn');if(!running){btn.textContent='⏱ 스플릿';return;}const nx=checkpoints[curSplits.length];btn.textContent=nx?('⏱ '+nx+' 통과'):('⏱ 구간 '+(curSplits.length+1));}
+  function updSplitLabel(){const btn=$('splitBtn');if(!running){btn.textContent='⏱ 스플릿';return;}const nx=checkpoints[curSplits.length];btn.textContent=nx?('⏱ '+nx+' 통과'):'⏱ 스플릿';}
   function renderCP(){$('cpChips').innerHTML=checkpoints.map((c,i)=>'<span class="chip"><b>'+(i+1)+'</b> '+esc(c)+' <span class="x" data-i="'+i+'">✕</span></span>').join('');$('cpChips').querySelectorAll('.x').forEach(x=>x.addEventListener('click',()=>{checkpoints.splice(+x.dataset.i,1);renderCP();updSplitLabel();}));}
   function addCP(n){n=(n||'').trim();if(n){checkpoints.push(n);renderCP();updSplitLabel();}}
   function renderSplits(){
