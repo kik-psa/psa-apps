@@ -25,6 +25,13 @@
   .namerow{display:flex;gap:6px;align-items:center;margin-bottom:10px;}
   .namerow .nlbl{font-size:16px;}
   .namerow input{flex:1;min-width:0;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:14px;}
+  .cpbuild{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .cpbuild .cptitle{font-size:12.5px;color:var(--muted);width:100%;font-weight:800;}
+  .cpbuild .cpp{background:#22303a;border:1px solid #35566a;color:#8fd6ff;border-radius:8px;padding:7px 10px;font-size:12.5px;font-weight:800;}
+  .cpbuild #cpInput{flex:1;min-width:90px;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px;font-size:13px;}
+  .cpchips{display:flex;flex-wrap:wrap;gap:6px;width:100%;}
+  .cpchips .chip{background:#1c1c28;border:1px solid var(--line);border-radius:20px;padding:5px 10px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .cpchips .chip b{color:var(--muted);font-weight:800;} .cpchips .chip .x{color:#ff9aa5;font-weight:900;}
   .turnLabel{text-align:center;font-size:20px;font-weight:800;height:26px;margin-bottom:2px;}
   .clock{text-align:center;font-variant-numeric:tabular-nums;font-weight:900;font-size:clamp(60px,23vw,150px);line-height:1;letter-spacing:-3px;color:var(--accent);}
   .clock.warn{color:#ff5c5c;}
@@ -89,6 +96,17 @@
         <span class="nlbl">🔴</span><input id="nameA" type="text" placeholder="A 이름">
         <span class="nlbl">🔵</span><input id="nameB" type="text" placeholder="B 이름">
       </div>
+      <div class="cpbuild">
+        <span class="cptitle">측정 구간 (스플릿) — 추가한 순서대로 기록됩니다</span>
+        <button class="cpp" data-n="1구간">+1구간</button>
+        <button class="cpp" data-n="2구간">+2구간</button>
+        <button class="cpp" data-n="3구간">+3구간</button>
+        <button class="cpp" data-n="반환점">+반환점</button>
+        <button class="cpp" data-n="도착">+도착</button>
+        <input id="cpInput" type="text" placeholder="직접입력">
+        <button id="cpAddBtn" class="cpp">추가</button>
+        <div class="cpchips" id="cpChips"></div>
+      </div>
       <div class="turnLabel" id="turnLabel"></div>
       <div class="clock" id="clock">30.0</div>
       <div class="reps" id="reps">A 0회 · B 0회</div>
@@ -136,8 +154,9 @@
   let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null;
   let active=0, repsAB=[0,0], weight=50, doneMode="auto";
   let nameA="A", nameB="B";
-  let reps=[];        // 저장용: {side,time,weight,splits:[..]} 또는 {marker:'weight',value}
-  let curSplits=[];   // 현재 회차 내 스플릿(구간) 시간들
+  let checkpoints=[]; // 측정 구간 이름 목록
+  let reps=[];        // 저장용: {side,time,weight,splits:[{name,time}..]} 또는 {marker:'weight',value}
+  let curSplits=[];   // 현재 회차 내 스플릿(구간) {name,time}
 
   const clock=$('clock'), turnLabel=$('turnLabel'), repsEl=$('reps'), doneBtn=$('doneBtn'),
         wVal=$('wVal'), splitBox=$('splitBox'), curSplitsEl=$('curSplits'),
@@ -151,7 +170,11 @@
   function showTime(ms){clock.textContent=fmtC(ms);}
   function updTurn(){turnLabel.textContent=(active===0?("🔴 "+nm(0)+" 차례"):("🔵 "+nm(1)+" 차례"));}
   function updReps(){repsEl.textContent=nm(0)+" "+repsAB[0]+"회 · "+nm(1)+" "+repsAB[1]+"회";}
-  function renderCur(){curSplitsEl.innerHTML=curSplits.map((t,i)=>'<span class="cs">구간'+(i+1)+' '+sec(t)+'초</span>').join('');}
+  function renderCur(){curSplitsEl.innerHTML=curSplits.map(s=>'<span class="cs">'+esc(s.name)+' '+sec(s.time)+'초</span>').join('');}
+  function updDoneBtn(){doneBtn.style.display = doneMode==="manual" ? "" : "none";}
+  function updSplitLabel(){const btn=$('splitBtn');if(!running){btn.textContent='⏱ 스플릿';return;}const nx=checkpoints[curSplits.length];btn.textContent=nx?('⏱ '+nx+' 통과'):('⏱ 구간 '+(curSplits.length+1));}
+  function renderCP(){$('cpChips').innerHTML=checkpoints.map((c,i)=>'<span class="chip"><b>'+(i+1)+'</b> '+esc(c)+' <span class="x" data-i="'+i+'">✕</span></span>').join('');$('cpChips').querySelectorAll('.x').forEach(x=>x.addEventListener('click',()=>{checkpoints.splice(+x.dataset.i,1);renderCP();updSplitLabel();}));}
+  function addCP(n){n=(n||'').trim();if(n){checkpoints.push(n);renderCP();updSplitLabel();}}
   function renderSplits(){
     if(!reps.length){splitBox.innerHTML="";return;}
     let n=reps.filter(r=>!r.marker).length; const rows=[];
@@ -160,7 +183,7 @@
       if(r.marker){rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">⚖️ 기둥 무게 '+r.value+'kg 변경</span><span class="st"></span></div>');}
       else{const idx=n;n--;
         const who=r.side===0?('🔴'+nm(0)):('🔵'+nm(1));
-        const sub=(r.splits&&r.splits.length)?('<div class="sub">구간 '+r.splits.map((t,k)=>sec(t)).join(' / ')+'</div>'):'';
+        const sub=(r.splits&&r.splits.length)?('<div class="sub">'+r.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+'</div>'):'';
         rows.push('<div class="splititem"><span class="sn">'+idx+'회 '+who+(r.timedout?' <span style="color:#ff9aa5">(자동)</span>':'')+'</span><span class="st">'+sec(r.time)+'초 · '+r.weight+'kg'+sub+'</span></div>');}
     }
     splitBox.innerHTML=rows.join('');
@@ -172,7 +195,7 @@
     startT=performance.now();running=true;pausedElapsed=null;last3=null;doneBtn.disabled=false;
     active=0;repsAB=[0,0];reps=[];curSplits=[];
     clock.classList.remove('warn');
-    updTurn();updReps();renderCur();renderSplits();
+    updTurn();updReps();renderCur();renderSplits();updSplitLabel();
     if(raf)cancelAnimationFrame(raf);tick();
   }
   function tick(){
@@ -191,7 +214,7 @@
   function logRep(time,timedout){
     reps.push({side:active,time:time,weight:weight,timedout:!!timedout,splits:curSplits.slice()});
     repsAB[active]++;active=1-active;curSplits=[];
-    updTurn();updReps();renderCur();renderSplits();
+    updTurn();updReps();renderCur();renderSplits();updSplitLabel();
   }
   function done(){
     if(!running)return;
@@ -200,16 +223,16 @@
     if(doneMode==="manual"){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;clock.classList.remove('warn');showTime(limitMs);$('status').textContent="시작을 누르면 다음 차례";}
     else{startT=performance.now();last3=null;}
   }
-  function doSplit(){if(!running)return;curSplits.push(performance.now()-startT);renderCur();beep(500,0.08);}
+  function doSplit(){if(!running)return;const t=performance.now()-startT;const name=checkpoints[curSplits.length]||('구간'+(curSplits.length+1));curSplits.push({name:name,time:t});renderCur();updSplitLabel();beep(500,0.08);}
   function startOrResume(){
-    if(pausedElapsed!=null){startT=performance.now()-pausedElapsed;running=true;pausedElapsed=null;$('status').textContent="진행 중";if(raf)cancelAnimationFrame(raf);tick();}
+    if(pausedElapsed!=null){startT=performance.now()-pausedElapsed;running=true;pausedElapsed=null;$('status').textContent="진행 중";updSplitLabel();if(raf)cancelAnimationFrame(raf);tick();}
     else if(!running){start();$('status').textContent="진행 중";}
   }
   function togglePause(){
     if(running){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=performance.now()-startT;$('pauseBtn').textContent="재개";$('status').textContent="일시정지";}
     else if(pausedElapsed!=null){startOrResume();$('pauseBtn').textContent="일시정지";}
   }
-  function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();$('status').textContent="제한시간 설정 후 시작";}
+  function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();updSplitLabel();$('status').textContent="제한시간 설정 후 시작";}
   function endSave(){
     running=false;if(raf)cancelAnimationFrame(raf);beep(180,0.5);
     const repEntries=reps.filter(r=>!r.marker);
@@ -240,7 +263,7 @@
       (r.reps||[]).forEach(x=>{
         if(x.marker){body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">⚖️ 기둥 무게 '+x.value+'kg 변경</span></div>';return;}
         n++;const who=x.side===0?('🔴'+aN):('🔵'+bN);
-        const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">[구간 '+x.splits.map(t=>sec(t)).join('/')+']</span>'):'';
+        const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">['+x.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+']</span>'):'';
         body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+n+'회 '+who+(x.timedout?' (자동)':'')+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
       });
       return '<div class="rec"><div class="rh"><span class="rt">🗿 '+r.limit+'초</span><span class="rd">'+ds+' <button class="delrec" data-ts="'+r.ts+'">✕</button></span></div>'+body+'</div>';
@@ -258,7 +281,7 @@
       (r.reps||[]).forEach(x=>{
         if(x.marker){rows.push([ds,r.limit,'','','기둥무게변경 '+x.value+'kg','','','']);return;}
         n++;const tgt=x.side===0?aN:bN;
-        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,(x.splits||[]).map(t=>sec(t)).join(' / ')]);
+        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,(x.splits||[]).map(s=>s.name+' '+sec(s.time)).join(' / ')]);
       });
     });
     const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
@@ -269,7 +292,10 @@
   // ---- wire ----
   document.querySelectorAll('.lim').forEach(b=>b.addEventListener('click',()=>{$('limCustom').value="";setLimit(+b.dataset.s);}));
   $('limCustom').addEventListener('input',e=>{const v=parseInt(e.target.value);if(v>0){document.querySelectorAll('.lim').forEach(b=>b.classList.remove('on'));setLimit(v);}});
-  document.querySelectorAll('#doneModeRow .opt').forEach(b=>b.addEventListener('click',()=>{doneMode=b.dataset.dm;document.querySelectorAll('#doneModeRow .opt').forEach(x=>x.classList.toggle('on',x===b));}));
+  document.querySelectorAll('#doneModeRow .opt').forEach(b=>b.addEventListener('click',()=>{doneMode=b.dataset.dm;document.querySelectorAll('#doneModeRow .opt').forEach(x=>x.classList.toggle('on',x===b));updDoneBtn();}));
+  document.querySelectorAll('.cpbuild .cpp[data-n]').forEach(b=>b.addEventListener('click',()=>addCP(b.dataset.n)));
+  $('cpAddBtn').addEventListener('click',()=>{addCP($('cpInput').value);$('cpInput').value="";});
+  $('cpInput').addEventListener('keydown',e=>{if(e.key==='Enter'){addCP($('cpInput').value);$('cpInput').value="";}});
   $('nameA').addEventListener('input',e=>{nameA=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
   $('nameB').addEventListener('input',e=>{nameB=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
   $('doneBtn').addEventListener('click',done);
@@ -285,7 +311,7 @@
   function switchView(v){document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));$('v-'+v).classList.add('active');document.querySelector('nav button[data-v="'+v+'"]').classList.add('active');if(v==='rec')renderRecs();}
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.v)));
 
-  showTime(limitMs);updTurn();updReps();renderRecs();
+  showTime(limitMs);updTurn();updReps();renderRecs();renderCP();updDoneBtn();updSplitLabel();
 })();
 </script>
 </body>
