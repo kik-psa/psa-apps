@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>6Q 기둥 넘기기 타이머</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--text:#f5f5f7;--muted:#9a9aab;--line:#26263a;--accent:#37d67a;--gold:#ffd54a;--red:#ff5c5c;--blue:#3aa0ff;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",Roboto,sans-serif;overscroll-behavior:none;}
+  body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);}
+  header{text-align:center;padding:10px 12px 4px;}
+  header h1{font-size:clamp(17px,4.6vw,22px);font-weight:800;}
+  header .sub{color:var(--muted);font-size:12px;margin-top:2px;}
+  main{flex:1;overflow-y:auto;min-height:0;}
+  .view{display:none;padding:6px 12px 14px;} .view.active{display:block;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:14px;color:var(--muted);}
+  .lim{background:#1c1c28;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 14px;font-weight:800;}
+  .lim.on{background:#2f6f4a;border-color:var(--accent);color:#fff;}
+  #limCustom{width:92px;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;text-align:center;font-size:14px;}
+  .opt{background:#1c1c28;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;}
+  .opt.on{background:#2f6f4a;border-color:var(--accent);color:#fff;}
+  .namerow{display:flex;gap:6px;align-items:center;margin-bottom:10px;}
+  .namerow .nlbl{font-size:16px;}
+  .namerow input{flex:1;min-width:0;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:14px;}
+  .turnLabel{text-align:center;font-size:20px;font-weight:800;height:26px;margin-bottom:2px;}
+  .clock{text-align:center;font-variant-numeric:tabular-nums;font-weight:900;font-size:clamp(60px,23vw,150px);line-height:1;letter-spacing:-3px;color:var(--accent);}
+  .clock.warn{color:#ff5c5c;}
+  .reps{text-align:center;color:var(--muted);font-size:16px;font-weight:800;margin:6px 0 8px;}
+  .doneBtn{width:100%;height:88px;border:none;border-radius:18px;background:var(--accent);color:#0a0a0f;font-size:26px;font-weight:900;margin-bottom:8px;}
+  .doneBtn:active{transform:scale(.98);} .doneBtn:disabled{background:#20202e;color:#50506a;}
+  .splitBtn{width:100%;height:56px;border:none;border-radius:14px;background:#3a4a6a;color:#cfe3ff;font-size:18px;font-weight:900;margin-bottom:10px;}
+  .splitBtn:active{transform:scale(.98);} .splitBtn:disabled{background:#20202e;color:#50506a;}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;}
+  .bar button{flex:1;min-width:70px;height:48px;border:none;border-radius:12px;font-weight:800;font-size:15px;background:#3a3a4c;color:var(--text);}
+  #startBtn{background:var(--accent);color:#0a0a0f;} #endBtn{background:#4a1f26;color:#ff9aa5;}
+  .wbox{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;flex-wrap:wrap;}
+  .wbox .wlbl{color:var(--muted);font-size:13px;}
+  .wbox .wval{font-size:20px;font-weight:800;min-width:96px;text-align:center;}
+  .wbox .incbtn{border:none;border-radius:10px;padding:0 20px;height:44px;background:var(--gold);color:#0a0a0f;font-weight:800;}
+  .wbox .incEditor{display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;margin-top:2px;}
+  .wbox .incEditor.on{display:flex;}
+  .wbox .incEditor input{width:100px;height:44px;border-radius:10px;border:1px solid var(--line);background:#0f0f18;color:var(--text);font-size:18px;font-weight:800;text-align:center;}
+  .wbox .incEditor button{border:none;border-radius:10px;padding:0 16px;height:44px;font-weight:800;}
+  .wbox .incEditor #wApply{background:var(--accent);color:#0a0a0f;} .wbox .incEditor .ghost{background:#2a2a3c;color:var(--text);}
+  .curSplits{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+  .curSplits .cs{background:#1c1c28;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#cfe3ff;}
+  .splitbox{margin-top:12px;display:flex;flex-direction:column;gap:5px;}
+  .splititem{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:14px;}
+  .splititem .sn{color:var(--muted);font-weight:700;} .splititem .st{font-weight:800;font-variant-numeric:tabular-nums;}
+  .splititem .sub{color:#8a8a9e;font-size:12px;font-variant-numeric:tabular-nums;}
+  /* records */
+  .recbar{display:flex;gap:8px;margin-bottom:12px;}
+  .recbar button{flex:1;height:46px;border:none;border-radius:12px;font-weight:800;font-size:14px;}
+  #csvBtn{background:#22303a;color:#8fd6ff;} #clrBtn{background:#4a1f26;color:#ff9aa5;}
+  .rec{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  .rec .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .rec .rt{font-weight:800;font-size:15px;} .rec .rd{color:var(--muted);font-size:12px;}
+  .rec .line{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0;border-top:1px solid var(--line);}
+  .rec .line .l{color:#cdd;} .rec .line .r{font-variant-numeric:tabular-nums;font-weight:700;}
+  .delrec{background:#3a2226;color:#ff9aa5;border:none;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:800;}
+  .empty{color:var(--muted);text-align:center;padding:40px 12px;line-height:1.6;}
+  nav{display:flex;border-top:1px solid var(--line);background:#0d0d15;padding-bottom:env(safe-area-inset-bottom);}
+  nav button{flex:1;background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav button .ic{font-size:19px;} nav button.active{color:var(--accent);}
+</style>
+</head>
+<body>
+  <header>
+    <h1>6Q 기둥 넘기기 타이머</h1>
+    <div class="sub" id="status">제한시간 설정 후 시작</div>
+  </header>
+  <main>
+    <section class="view active" id="v-timer">
+      <div class="row">
+        <span>제한시간</span>
+        <button class="lim" data-s="20">20초</button>
+        <button class="lim on" data-s="30">30초</button>
+        <input id="limCustom" type="number" placeholder="직접(초)">
+      </div>
+      <div class="row" id="doneModeRow">
+        <span>완료 후</span>
+        <button class="opt on" data-dm="auto">완료시 바로 시작</button>
+        <button class="opt" data-dm="manual">수동으로 시작</button>
+      </div>
+      <div class="namerow">
+        <span class="nlbl">🔴</span><input id="nameA" type="text" placeholder="A 이름">
+        <span class="nlbl">🔵</span><input id="nameB" type="text" placeholder="B 이름">
+      </div>
+      <div class="turnLabel" id="turnLabel"></div>
+      <div class="clock" id="clock">30.0</div>
+      <div class="reps" id="reps">A 0회 · B 0회</div>
+      <button class="doneBtn" id="doneBtn">완료 ✓</button>
+      <button class="splitBtn" id="splitBtn">⏱ 스플릿</button>
+      <div class="bar">
+        <button id="startBtn">시작</button>
+        <button id="pauseBtn">일시정지</button>
+        <button id="resetBtn">리셋</button>
+        <button id="endBtn">종료</button>
+      </div>
+      <div class="wbox">
+        <span class="wlbl">기둥 무게</span>
+        <span class="wval" id="wVal">50 kg</span>
+        <button id="wInc" class="incbtn">변경</button>
+        <div class="incEditor" id="incEditor">
+          <input id="wInput" type="number" inputmode="numeric" step="5" placeholder="kg">
+          <span style="color:var(--muted);font-size:14px;">kg</span>
+          <button id="wApply">확인</button>
+          <button id="wCancel" class="ghost">취소</button>
+        </div>
+      </div>
+      <div class="curSplits" id="curSplits"></div>
+      <div class="splitbox" id="splitBox"></div>
+    </section>
+    <section class="view" id="v-rec">
+      <div class="recbar"><button id="csvBtn">⬇ CSV 내보내기</button><button id="clrBtn">전체 삭제</button></div>
+      <div id="recs"></div>
+    </section>
+  </main>
+  <nav>
+    <button class="active" data-v="timer"><span class="ic">🗿</span>타이머</button>
+    <button data-v="rec"><span class="ic">📋</span>기록</button>
+  </nav>
+<script>
+(function(){
+  const K="gidung6q_v1";
+  const $=id=>document.getElementById(id);
+  const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
+  const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const sec=ms=>(Math.max(0,ms)/1000).toFixed(2);
+  const fmtC=ms=>(Math.max(0,ms)/1000).toFixed(1);
+
+  let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null;
+  let active=0, repsAB=[0,0], weight=50, doneMode="auto";
+  let nameA="A", nameB="B";
+  let reps=[];        // 저장용: {side,time,weight,splits:[..]} 또는 {marker:'weight',value}
+  let curSplits=[];   // 현재 회차 내 스플릿(구간) 시간들
+
+  const clock=$('clock'), turnLabel=$('turnLabel'), repsEl=$('reps'), doneBtn=$('doneBtn'),
+        wVal=$('wVal'), splitBox=$('splitBox'), curSplitsEl=$('curSplits'),
+        incEditor=$('incEditor'), wInput=$('wInput');
+  const nm=s=> s===0?(nameA||"A"):(nameB||"B");
+
+  // ---- audio ----
+  let ac=null;
+  function beep(f,d){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.001,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.3,ac.currentTime+0.02);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d);}catch(e){}}
+
+  function showTime(ms){clock.textContent=fmtC(ms);}
+  function updTurn(){turnLabel.textContent=(active===0?("🔴 "+nm(0)+" 차례"):("🔵 "+nm(1)+" 차례"));}
+  function updReps(){repsEl.textContent=nm(0)+" "+repsAB[0]+"회 · "+nm(1)+" "+repsAB[1]+"회";}
+  function renderCur(){curSplitsEl.innerHTML=curSplits.map((t,i)=>'<span class="cs">구간'+(i+1)+' '+sec(t)+'초</span>').join('');}
+  function renderSplits(){
+    if(!reps.length){splitBox.innerHTML="";return;}
+    let n=reps.filter(r=>!r.marker).length; const rows=[];
+    for(let i=reps.length-1;i>=0;i--){
+      const r=reps[i];
+      if(r.marker){rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">⚖️ 기둥 무게 '+r.value+'kg 변경</span><span class="st"></span></div>');}
+      else{const idx=n;n--;
+        const who=r.side===0?('🔴'+nm(0)):('🔵'+nm(1));
+        const sub=(r.splits&&r.splits.length)?('<div class="sub">구간 '+r.splits.map((t,k)=>sec(t)).join(' / ')+'</div>'):'';
+        rows.push('<div class="splititem"><span class="sn">'+idx+'회 '+who+(r.timedout?' <span style="color:#ff9aa5">(자동)</span>':'')+'</span><span class="st">'+sec(r.time)+'초 · '+r.weight+'kg'+sub+'</span></div>');}
+    }
+    splitBox.innerHTML=rows.join('');
+  }
+
+  function setLimit(s){limitMs=s*1000;document.querySelectorAll('.lim').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));if(running){reps.push({marker:'limit',value:limitMs});renderSplits();}else showTime(limitMs);}
+
+  function start(){
+    startT=performance.now();running=true;pausedElapsed=null;last3=null;doneBtn.disabled=false;
+    active=0;repsAB=[0,0];reps=[];curSplits=[];
+    clock.classList.remove('warn');
+    updTurn();updReps();renderCur();renderSplits();
+    if(raf)cancelAnimationFrame(raf);tick();
+  }
+  function tick(){
+    if(!running)return;
+    const elapsed=performance.now()-startT, rem=limitMs-elapsed;
+    if(rem<=0){
+      // 제한시간 초과 → 자동으로 횟수 +1 하고 리셋(반복)
+      logRep(limitMs,true);
+      startT=performance.now();last3=null;clock.classList.remove('warn');beep(880,0.16);
+    } else {
+      showTime(rem);const s=Math.ceil(rem/1000);
+      if(rem<=5000){clock.classList.add('warn');if(s!==last3){last3=s;beep(700,0.14);}}else clock.classList.remove('warn');
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  function logRep(time,timedout){
+    reps.push({side:active,time:time,weight:weight,timedout:!!timedout,splits:curSplits.slice()});
+    repsAB[active]++;active=1-active;curSplits=[];
+    updTurn();updReps();renderCur();renderSplits();
+  }
+  function done(){
+    if(!running)return;
+    const t=performance.now()-startT;
+    logRep(t,false);beep(880,0.12);
+    if(doneMode==="manual"){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;clock.classList.remove('warn');showTime(limitMs);$('status').textContent="시작을 누르면 다음 차례";}
+    else{startT=performance.now();last3=null;}
+  }
+  function doSplit(){if(!running)return;curSplits.push(performance.now()-startT);renderCur();beep(500,0.08);}
+  function startOrResume(){
+    if(pausedElapsed!=null){startT=performance.now()-pausedElapsed;running=true;pausedElapsed=null;$('status').textContent="진행 중";if(raf)cancelAnimationFrame(raf);tick();}
+    else if(!running){start();$('status').textContent="진행 중";}
+  }
+  function togglePause(){
+    if(running){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=performance.now()-startT;$('pauseBtn').textContent="재개";$('status').textContent="일시정지";}
+    else if(pausedElapsed!=null){startOrResume();$('pauseBtn').textContent="일시정지";}
+  }
+  function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();$('status').textContent="제한시간 설정 후 시작";}
+  function endSave(){
+    running=false;if(raf)cancelAnimationFrame(raf);beep(180,0.5);
+    const repEntries=reps.filter(r=>!r.marker);
+    if(!repEntries.length){$('status').textContent="기록 없음";return;}
+    const rec={ts:Date.now(),limit:Math.round(limitMs/100)/10,aName:nm(0),bName:nm(1),a:repsAB[0],b:repsAB[1],reps:reps.slice()};
+    const arr=load(K,[]);arr.unshift(rec);save(K,arr);renderRecs();
+    $('status').textContent="저장됨";
+  }
+  function setWeight(w){weight=Math.max(0,w);wVal.textContent=weight+" kg";}
+  function applyIncrease(w){
+    const activeSess=running||pausedElapsed!=null||reps.some(r=>!r.marker);
+    setWeight(w);incEditor.classList.remove('on');
+    if(activeSess){reps.push({marker:'weight',value:weight});running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;clock.classList.remove('warn');showTime(limitMs);$('status').textContent="기둥 무게 "+weight+"kg — 시작을 누르면 재개";renderSplits();}
+    else showTime(limitMs);
+  }
+
+  // ---- records ----
+  function renderRecs(){
+    const arr=load(K,[]);
+    if(!arr.length){$('recs').innerHTML='<div class="empty">저장된 기록이 없어요.<br>종료를 누르면 저장됩니다.</div>';return;}
+    $('recs').innerHTML=arr.map(r=>{
+      const d=new Date(r.ts),p=n=>String(n).padStart(2,'0');
+      const ds=(d.getMonth()+1)+"/"+d.getDate()+" "+p(d.getHours())+":"+p(d.getMinutes());
+      const aN=esc(r.aName||'A'),bN=esc(r.bName||'B');
+      let n=0,body='';
+      body+='<div class="line"><span class="l">🔴 '+aN+'</span><span class="r">'+r.a+'회</span></div><div class="line"><span class="l">🔵 '+bN+'</span><span class="r">'+r.b+'회</span></div>';
+      body+='<div class="line" style="border-top:1px dashed #26263a;margin-top:4px;padding-top:6px;"><span class="l" style="color:#8a8a9e;font-size:12px">회차별 기록</span></div>';
+      (r.reps||[]).forEach(x=>{
+        if(x.marker){body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">⚖️ 기둥 무게 '+x.value+'kg 변경</span></div>';return;}
+        n++;const who=x.side===0?('🔴'+aN):('🔵'+bN);
+        const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">[구간 '+x.splits.map(t=>sec(t)).join('/')+']</span>'):'';
+        body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+n+'회 '+who+(x.timedout?' (자동)':'')+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
+      });
+      return '<div class="rec"><div class="rh"><span class="rt">🗿 '+r.limit+'초</span><span class="rd">'+ds+' <button class="delrec" data-ts="'+r.ts+'">✕</button></span></div>'+body+'</div>';
+    }).join('');
+    $('recs').querySelectorAll('.delrec').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.a==="1"){save(K,load(K,[]).filter(r=>r.ts!==+b.dataset.ts));renderRecs();return;}
+      b.dataset.a="1";b.textContent="삭제?";b.style.background="#e63946";b.style.color="#fff";
+      setTimeout(()=>{if(b&&b.dataset.a==="1"){b.dataset.a="0";b.textContent="✕";b.style.background="";b.style.color="";}},3000);
+    }));
+  }
+  $('csvBtn').addEventListener('click',()=>{
+    const arr=load(K,[]);if(!arr.length){alert('기록이 없어요');return;}
+    let rows=[['일시','제한시간(초)','대상','회차','구분','시간(초)','기둥무게(kg)','구간스플릿(초)']];
+    arr.slice().reverse().forEach(r=>{const ds=new Date(r.ts).toLocaleString();const aN=r.aName||'A',bN=r.bName||'B';let n=0;
+      (r.reps||[]).forEach(x=>{
+        if(x.marker){rows.push([ds,r.limit,'','','기둥무게변경 '+x.value+'kg','','','']);return;}
+        n++;const tgt=x.side===0?aN:bN;
+        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,(x.splits||[]).map(t=>sec(t)).join(' / ')]);
+      });
+    });
+    const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const b=new Blob([csv],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='6Q_기둥넘기기_기록.csv';a.click();
+  });
+  $('clrBtn').addEventListener('click',()=>{if(confirm('모든 기록을 삭제할까요?')){save(K,[]);renderRecs();}});
+
+  // ---- wire ----
+  document.querySelectorAll('.lim').forEach(b=>b.addEventListener('click',()=>{$('limCustom').value="";setLimit(+b.dataset.s);}));
+  $('limCustom').addEventListener('input',e=>{const v=parseInt(e.target.value);if(v>0){document.querySelectorAll('.lim').forEach(b=>b.classList.remove('on'));setLimit(v);}});
+  document.querySelectorAll('#doneModeRow .opt').forEach(b=>b.addEventListener('click',()=>{doneMode=b.dataset.dm;document.querySelectorAll('#doneModeRow .opt').forEach(x=>x.classList.toggle('on',x===b));}));
+  $('nameA').addEventListener('input',e=>{nameA=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
+  $('nameB').addEventListener('input',e=>{nameB=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
+  $('doneBtn').addEventListener('click',done);
+  $('splitBtn').addEventListener('click',doSplit);
+  $('startBtn').addEventListener('click',startOrResume);
+  $('pauseBtn').addEventListener('click',togglePause);
+  $('resetBtn').addEventListener('click',hardReset);
+  $('endBtn').addEventListener('click',endSave);
+  $('wInc').addEventListener('click',()=>{wInput.value=weight;incEditor.classList.toggle('on');if(incEditor.classList.contains('on'))wInput.focus();});
+  $('wApply').addEventListener('click',()=>{const v=parseInt(wInput.value);if(v>0)applyIncrease(v);else incEditor.classList.remove('on');});
+  $('wCancel').addEventListener('click',()=>incEditor.classList.remove('on'));
+  wInput.addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(wInput.value);if(v>0)applyIncrease(v);}});
+  function switchView(v){document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));$('v-'+v).classList.add('active');document.querySelector('nav button[data-v="'+v+'"]').classList.add('active');if(v==='rec')renderRecs();}
+  document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.v)));
+
+  showTime(limitMs);updTurn();updReps();renderRecs();
+})();
+</script>
+</body>
+</html>
