@@ -175,7 +175,7 @@
     let n=reps.filter(r=>!r.marker).length; const rows=[];
     for(let i=reps.length-1;i>=0;i--){
       const r=reps[i];
-      if(r.marker){rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">⚖️ 기둥 무게 '+r.value+'kg 변경</span><span class="st"></span></div>');}
+      if(r.marker){const txt=r.marker==='limit'?('⏱️ 제한시간 '+(r.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+r.value+'kg 변경');rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">'+txt+'</span><span class="st"></span></div>');}
       else{const idx=n;n--;
         const who=r.side===0?('🔴'+nm(0)):('🔵'+nm(1));
         const sub=(r.splits&&r.splits.length)?('<div class="sub">'+r.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+'</div>'):'';
@@ -184,7 +184,12 @@
     splitBox.innerHTML=rows.join('');
   }
 
-  function setLimit(s){limitMs=s*1000;document.querySelectorAll('.lim').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));if(running){reps.push({marker:'limit',value:limitMs});renderSplits();}else showTime(limitMs);}
+  function setLimit(s){
+    limitMs=s*1000;document.querySelectorAll('.lim').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));
+    if(running){reps.push({marker:'limit',value:limitMs});renderSplits();startT=performance.now();last3=null;clock.classList.remove('warn');showTime(limitMs);}
+    else if(pausedElapsed!=null){pausedElapsed=0;showTime(limitMs);}
+    else showTime(limitMs);
+  }
 
   function start(){
     startT=performance.now();running=true;pausedElapsed=null;last3=null;doneBtn.disabled=false;
@@ -256,7 +261,7 @@
       body+='<div class="line"><span class="l">🔴 '+aN+'</span><span class="r">'+r.a+'회</span></div><div class="line"><span class="l">🔵 '+bN+'</span><span class="r">'+r.b+'회</span></div>';
       body+='<div class="line" style="border-top:1px dashed #26263a;margin-top:4px;padding-top:6px;"><span class="l" style="color:#8a8a9e;font-size:12px">회차별 기록</span></div>';
       (r.reps||[]).forEach(x=>{
-        if(x.marker){body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">⚖️ 기둥 무게 '+x.value+'kg 변경</span></div>';return;}
+        if(x.marker){const txt=x.marker==='limit'?('⏱️ 제한시간 '+(x.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+x.value+'kg 변경');body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">'+txt+'</span></div>';return;}
         n++;const who=x.side===0?('🔴'+aN):('🔵'+bN);
         const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">['+x.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+']</span>'):'';
         body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+n+'회 '+who+(x.timedout?' (자동)':'')+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
@@ -274,7 +279,7 @@
     let rows=[['일시','제한시간(초)','대상','회차','구분','시간(초)','기둥무게(kg)','구간스플릿(초)']];
     arr.slice().reverse().forEach(r=>{const ds=new Date(r.ts).toLocaleString();const aN=r.aName||'A',bN=r.bName||'B';let n=0;
       (r.reps||[]).forEach(x=>{
-        if(x.marker){rows.push([ds,r.limit,'','','기둥무게변경 '+x.value+'kg','','','']);return;}
+        if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');rows.push([ds,r.limit,'','',ev,'','','']);return;}
         n++;const tgt=x.side===0?aN:bN;
         rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,(x.splits||[]).map(s=>s.name+' '+sec(s.time)).join(' / ')]);
       });
