@@ -254,6 +254,8 @@
   }
   function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;pausedByBtn=false;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();updSplitLabel();$('status').textContent="제한시간 설정 후 시작";}
   function endSave(){
+    // 진행 중인 사람이 실제로 뛰었으면(0.3초 이상) 그 기록도 완료로 저장 → 한 명만 성공해도 누락 안 됨
+    if(running){const cur=performance.now()-startT;if(cur>=300){logRep(cur,false);}}
     running=false;if(raf)cancelAnimationFrame(raf);beep(180,0.5);
     const repEntries=reps.filter(r=>!r.marker);
     if(!repEntries.length){$('status').textContent="기록 없음";return;}
