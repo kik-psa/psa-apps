@@ -146,6 +146,13 @@
   const sec=ms=>(Math.max(0,ms)/1000).toFixed(2);
   const fmtC=ms=>(Math.max(0,ms)/1000).toFixed(1);
 
+  // ---- 구글시트 자동 전송 (Apps Script 웹앱) ----
+  const SHEET_URL="https://script.google.com/macros/s/AKfycbykWulT9_nRrzQ3zb53Wxuzo8vAPU57lmtT8JprD0MU5SgRDk77IvdaK2HLJ1n1OPge/exec"; // 6Q 기둥넘기기 전용 구글시트
+  function logToSheet(rows){
+    if(!SHEET_URL||!rows||!rows.length)return;
+    try{fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(rows)});}catch(e){}
+  }
+
   let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null;
   let active=0, repsAB=[0,0], weight=50, doneMode="auto";
   let nameA="A", nameB="B";
@@ -239,7 +246,16 @@
     if(!repEntries.length){$('status').textContent="기록 없음";return;}
     const rec={ts:Date.now(),limit:Math.round(limitMs/100)/10,aName:nm(0),bName:nm(1),a:repsAB[0],b:repsAB[1],reps:reps.slice()};
     const arr=load(K,[]);arr.unshift(rec);save(K,arr);renderRecs();
-    $('status').textContent="저장됨";
+    // 구글시트로 회차별 한 줄씩 전송
+    const dsFull=new Date(rec.ts).toLocaleString();let n=0;const out=[];
+    (rec.reps||[]).forEach(x=>{
+      if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');
+        out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':'','회차':'','구분':ev,'시간(초)':'','기둥무게(kg)':'','스플릿':''});return;}
+      n++;const tgt=x.side===0?rec.aName:rec.bName;
+      out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':tgt,'회차':n,'구분':(x.timedout?'자동(초과)':'완료'),'시간(초)':+sec(x.time),'기둥무게(kg)':x.weight,'스플릿':(x.splits||[]).map(s=>s.name+' '+sec(s.time)).join(' / ')});
+    });
+    logToSheet(out);
+    $('status').textContent=SHEET_URL?"저장됨 · 시트 전송":"저장됨";
   }
   function setWeight(w){weight=Math.max(0,w);wVal.textContent=weight+" kg";}
   function applyIncrease(w){
