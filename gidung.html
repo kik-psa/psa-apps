@@ -156,7 +156,7 @@
   // 스플릿을 구간 간 소요시간(직전 구간 대비 차이)으로 변환. 첫 구간은 시작~통과 시간 그대로.
   function splitDeltas(splits){let prev=0;return (splits||[]).map(function(s){const d=s.time-prev;prev=s.time;return {name:s.name,delta:d};});}
 
-  let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null;
+  let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null, pausedByBtn=false;
   let active=0, repsAB=[0,0], weight=50, doneMode="auto";
   let nameA="A", nameB="B";
   let testName=load(K+"_tn","")||""; // 테스트(시트) 이름
@@ -204,7 +204,7 @@
   }
 
   function start(){
-    startT=performance.now();running=true;pausedElapsed=null;last3=null;doneBtn.disabled=false;
+    startT=performance.now();running=true;pausedElapsed=null;last3=null;pausedByBtn=false;doneBtn.disabled=false;
     active=0;repsAB=[0,0];reps=[];curSplits=[];
     clock.classList.remove('warn');
     updTurn();updReps();renderCur();renderSplits();updSplitLabel();
@@ -232,19 +232,27 @@
     if(!running)return;
     const t=performance.now()-startT;
     logRep(t,false);beep(880,0.12);
-    if(doneMode==="manual"){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;clock.classList.remove('warn');showTime(limitMs);$('status').textContent="시작을 누르면 다음 차례";}
-    else{startT=performance.now();last3=null;}
+    // 수동/자동 모두: 완료 즉시 다음 사람 타이머 시작
+    startT=performance.now();last3=null;clock.classList.remove('warn');
   }
   function doSplit(){if(!running)return;const t=performance.now()-startT;const name=checkpoints[curSplits.length]||('구간'+(curSplits.length+1));curSplits.push({name:name,time:t});renderCur();updSplitLabel();beep(500,0.08);}
-  function startOrResume(){
-    if(pausedElapsed!=null){startT=performance.now()-pausedElapsed;running=true;pausedElapsed=null;$('status').textContent="진행 중";updSplitLabel();if(raf)cancelAnimationFrame(raf);tick();}
-    else if(!running){start();$('status').textContent="진행 중";}
+  function doResume(){
+    if(pausedElapsed==null)return;
+    startT=performance.now()-pausedElapsed;running=true;pausedElapsed=null;pausedByBtn=false;
+    $('pauseBtn').textContent="일시정지";$('status').textContent="진행 중";updSplitLabel();
+    if(raf)cancelAnimationFrame(raf);tick();
+  }
+  function onStart(){
+    if(running)return;
+    if(pausedByBtn){$('status').textContent="일시정지 — 재개 버튼을 눌러주세요";return;} // 일시정지 상태: 재개 버튼만 가능
+    if(pausedElapsed!=null){doResume();return;}  // 무게/시간 변경 후 재개
+    start();$('status').textContent="진행 중";      // 새 세션 시작
   }
   function togglePause(){
-    if(running){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=performance.now()-startT;$('pauseBtn').textContent="재개";$('status').textContent="일시정지";}
-    else if(pausedElapsed!=null){startOrResume();$('pauseBtn').textContent="일시정지";}
+    if(running){running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=performance.now()-startT;pausedByBtn=true;$('pauseBtn').textContent="재개";$('status').textContent="일시정지";}
+    else if(pausedElapsed!=null){doResume();}
   }
-  function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();updSplitLabel();$('status').textContent="제한시간 설정 후 시작";}
+  function hardReset(){running=false;if(raf)cancelAnimationFrame(raf);startT=null;pausedElapsed=null;pausedByBtn=false;active=0;repsAB=[0,0];reps=[];curSplits=[];last3=null;clock.classList.remove('warn');incEditor.classList.remove('on');$('pauseBtn').textContent="일시정지";showTime(limitMs);updTurn();updReps();renderCur();renderSplits();updSplitLabel();$('status').textContent="제한시간 설정 후 시작";}
   function endSave(){
     running=false;if(raf)cancelAnimationFrame(raf);beep(180,0.5);
     const repEntries=reps.filter(r=>!r.marker);
@@ -269,7 +277,7 @@
   function applyIncrease(w){
     const activeSess=running||pausedElapsed!=null||reps.some(r=>!r.marker);
     setWeight(w);incEditor.classList.remove('on');
-    if(activeSess){reps.push({marker:'weight',value:weight});running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;clock.classList.remove('warn');showTime(limitMs);$('status').textContent="기둥 무게 "+weight+"kg — 시작을 누르면 재개";renderSplits();}
+    if(activeSess){reps.push({marker:'weight',value:weight});running=false;if(raf)cancelAnimationFrame(raf);pausedElapsed=0;last3=null;pausedByBtn=false;$('pauseBtn').textContent="일시정지";clock.classList.remove('warn');showTime(limitMs);$('status').textContent="기둥 무게 "+weight+"kg — 시작을 누르면 재개";renderSplits();}
     else showTime(limitMs);
   }
 
@@ -327,7 +335,7 @@
   $('nameB').addEventListener('input',e=>{nameB=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
   $('doneBtn').addEventListener('click',done);
   $('splitBtn').addEventListener('click',doSplit);
-  $('startBtn').addEventListener('click',startOrResume);
+  $('startBtn').addEventListener('click',onStart);
   $('pauseBtn').addEventListener('click',togglePause);
   $('resetBtn').addEventListener('click',hardReset);
   $('endBtn').addEventListener('click',endSave);
