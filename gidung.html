@@ -81,6 +81,7 @@
   </header>
   <main>
     <section class="view active" id="v-timer">
+      <div class="namerow"><span class="nlbl">🗂️</span><input id="testName" type="text" placeholder="테스트(시트) 이름 — 예: 0725_기둥무게50kg"></div>
       <div class="row">
         <span>제한시간</span>
         <button class="lim" data-s="20">20초</button>
@@ -148,14 +149,17 @@
 
   // ---- 구글시트 자동 전송 (Apps Script 웹앱) ----
   const SHEET_URL="https://script.google.com/macros/s/AKfycbykWulT9_nRrzQ3zb53Wxuzo8vAPU57lmtT8JprD0MU5SgRDk77IvdaK2HLJ1n1OPge/exec"; // 6Q 기둥넘기기 전용 구글시트
-  function logToSheet(rows){
-    if(!SHEET_URL||!rows||!rows.length)return;
-    try{fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(rows)});}catch(e){}
+  function logToSheet(payload){
+    if(!SHEET_URL||!payload||!payload.rows||!payload.rows.length)return;
+    try{fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});}catch(e){}
   }
+  // 스플릿을 구간 간 소요시간(직전 구간 대비 차이)으로 변환. 첫 구간은 시작~통과 시간 그대로.
+  function splitDeltas(splits){let prev=0;return (splits||[]).map(function(s){const d=s.time-prev;prev=s.time;return {name:s.name,delta:d};});}
 
   let limitMs=30000, running=false, raf=null, startT=null, pausedElapsed=null, last3=null;
   let active=0, repsAB=[0,0], weight=50, doneMode="auto";
   let nameA="A", nameB="B";
+  let testName=load(K+"_tn","")||""; // 테스트(시트) 이름
   let checkpoints=[]; // 측정 구간 이름 목록
   let reps=[];        // 저장용: {side,time,weight,splits:[{name,time}..]} 또는 {marker:'weight',value}
   let curSplits=[];   // 현재 회차 내 스플릿(구간) {name,time}
@@ -172,7 +176,7 @@
   function showTime(ms){clock.textContent=fmtC(ms);}
   function updTurn(){turnLabel.textContent=(active===0?("🔴 "+nm(0)+" 차례"):("🔵 "+nm(1)+" 차례"));}
   function updReps(){repsEl.textContent=nm(0)+" "+repsAB[0]+"회 · "+nm(1)+" "+repsAB[1]+"회";}
-  function renderCur(){curSplitsEl.innerHTML=curSplits.map(s=>'<span class="cs">'+esc(s.name)+' '+sec(s.time)+'초</span>').join('');}
+  function renderCur(){curSplitsEl.innerHTML=splitDeltas(curSplits).map(s=>'<span class="cs">'+esc(s.name)+' '+sec(s.delta)+'초</span>').join('');}
   function updDoneBtn(){doneBtn.style.display = doneMode==="manual" ? "" : "none";}
   function updSplitLabel(){const btn=$('splitBtn');if(!running){btn.textContent='⏱ 스플릿';return;}const nx=checkpoints[curSplits.length];btn.textContent=nx?('⏱ '+nx+' 통과'):'⏱ 스플릿';}
   function renderCP(){$('cpChips').innerHTML=checkpoints.map((c,i)=>'<span class="chip"><b>'+(i+1)+'</b> '+esc(c)+' <span class="x" data-i="'+i+'">✕</span></span>').join('');$('cpChips').querySelectorAll('.x').forEach(x=>x.addEventListener('click',()=>{checkpoints.splice(+x.dataset.i,1);renderCP();updSplitLabel();}));}
@@ -185,7 +189,7 @@
       if(r.marker){const txt=r.marker==='limit'?('⏱️ 제한시간 '+(r.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+r.value+'kg 변경');rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">'+txt+'</span><span class="st"></span></div>');}
       else{const idx=n;n--;
         const who=r.side===0?('🔴'+nm(0)):('🔵'+nm(1));
-        const sub=(r.splits&&r.splits.length)?('<div class="sub">'+r.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+'</div>'):'';
+        const sub=(r.splits&&r.splits.length)?('<div class="sub">'+splitDeltas(r.splits).map(s=>esc(s.name)+' '+sec(s.delta)).join(' / ')+'</div>'):'';
         rows.push('<div class="splititem"><span class="sn">'+idx+'회 '+who+(r.timedout?' <span style="color:#ff9aa5">(자동)</span>':'')+'</span><span class="st">'+sec(r.time)+'초 · '+r.weight+'kg'+sub+'</span></div>');}
     }
     splitBox.innerHTML=rows.join('');
@@ -250,12 +254,14 @@
     const dsFull=new Date(rec.ts).toLocaleString();let n=0;const out=[];
     (rec.reps||[]).forEach(x=>{
       if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');
-        out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':'','회차':'','구분':ev,'시간(초)':'','기둥무게(kg)':'','스플릿':''});return;}
+        out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':'','회차':'','구분':ev,'시간(초)':'','기둥무게(kg)':''});return;}
       n++;const tgt=x.side===0?rec.aName:rec.bName;
-      out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':tgt,'회차':n,'구분':(x.timedout?'자동(초과)':'완료'),'시간(초)':+sec(x.time),'기둥무게(kg)':x.weight,'스플릿':(x.splits||[]).map(s=>s.name+' '+sec(s.time)).join(' / ')});
+      const rowObj={'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':tgt,'회차':n,'구분':(x.timedout?'자동(초과)':'완료'),'시간(초)':+sec(x.time),'기둥무게(kg)':x.weight};
+      splitDeltas(x.splits).forEach(s=>{rowObj[s.name]=+sec(s.delta);}); // 구간별 열(구간 간 소요시간)
+      out.push(rowObj);
     });
-    logToSheet(out);
-    $('status').textContent=SHEET_URL?"저장됨 · 시트 전송":"저장됨";
+    logToSheet({sheet:(testName||'기록'), rows:out});
+    $('status').textContent=SHEET_URL?("저장됨 · 시트 전송"+(testName?(" ("+testName+")"):"")):"저장됨";
   }
   function setWeight(w){weight=Math.max(0,w);wVal.textContent=weight+" kg";}
   function applyIncrease(w){
@@ -279,7 +285,7 @@
       (r.reps||[]).forEach(x=>{
         if(x.marker){const txt=x.marker==='limit'?('⏱️ 제한시간 '+(x.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+x.value+'kg 변경');body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">'+txt+'</span></div>';return;}
         n++;const who=x.side===0?('🔴'+aN):('🔵'+bN);
-        const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">['+x.splits.map(s=>esc(s.name)+' '+sec(s.time)).join(' / ')+']</span>'):'';
+        const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">['+splitDeltas(x.splits).map(s=>esc(s.name)+' '+sec(s.delta)).join(' / ')+']</span>'):'';
         body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+n+'회 '+who+(x.timedout?' (자동)':'')+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
       });
       return '<div class="rec"><div class="rh"><span class="rt">🗿 '+r.limit+'초</span><span class="rd">'+ds+' <button class="delrec" data-ts="'+r.ts+'">✕</button></span></div>'+body+'</div>';
@@ -297,7 +303,7 @@
       (r.reps||[]).forEach(x=>{
         if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');rows.push([ds,r.limit,'','',ev,'','','']);return;}
         n++;const tgt=x.side===0?aN:bN;
-        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,(x.splits||[]).map(s=>s.name+' '+sec(s.time)).join(' / ')]);
+        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,splitDeltas(x.splits).map(s=>s.name+' '+sec(s.delta)).join(' / ')]);
       });
     });
     const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
@@ -312,6 +318,7 @@
   document.querySelectorAll('.cpbuild .cpp[data-n]').forEach(b=>b.addEventListener('click',()=>addCP(b.dataset.n)));
   $('cpAddBtn').addEventListener('click',()=>{addCP($('cpInput').value);$('cpInput').value="";});
   $('cpInput').addEventListener('keydown',e=>{if(e.key==='Enter'){addCP($('cpInput').value);$('cpInput').value="";}});
+  $('testName').addEventListener('input',e=>{testName=e.target.value.trim();save(K+"_tn",testName);});
   $('nameA').addEventListener('input',e=>{nameA=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
   $('nameB').addEventListener('input',e=>{nameB=e.target.value.trim();updTurn();updReps();renderCur();renderSplits();});
   $('doneBtn').addEventListener('click',done);
@@ -327,6 +334,7 @@
   function switchView(v){document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));$('v-'+v).classList.add('active');document.querySelector('nav button[data-v="'+v+'"]').classList.add('active');if(v==='rec')renderRecs();}
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.v)));
 
+  $('testName').value=testName;
   showTime(limitMs);updTurn();updReps();renderRecs();renderCP();updDoneBtn();updSplitLabel();
 })();
 </script>
