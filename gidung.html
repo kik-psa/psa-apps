@@ -183,11 +183,12 @@
   function addCP(n){n=(n||'').trim();if(n){checkpoints.push(n);renderCP();updSplitLabel();}}
   function renderSplits(){
     if(!reps.length){splitBox.innerHTML="";return;}
-    let n=reps.filter(r=>!r.marker).length; const rows=[];
+    const roundOf={};let ra=0,rb=0;reps.forEach((r,i)=>{if(!r.marker)roundOf[i]=(r.side===0?(++ra):(++rb));});
+    const rows=[];
     for(let i=reps.length-1;i>=0;i--){
       const r=reps[i];
       if(r.marker){const txt=r.marker==='limit'?('⏱️ 제한시간 '+(r.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+r.value+'kg 변경');rows.push('<div class="splititem" style="opacity:.8;background:#1a1a26;"><span class="sn" style="color:#9a9ab0">'+txt+'</span><span class="st"></span></div>');}
-      else{const idx=n;n--;
+      else{const idx=roundOf[i];
         const who=r.side===0?('🔴'+nm(0)):('🔵'+nm(1));
         const sub=(r.splits&&r.splits.length)?('<div class="sub">'+splitDeltas(r.splits).map(s=>esc(s.name)+' '+sec(s.delta)).join(' / ')+'</div>'):'';
         rows.push('<div class="splititem"><span class="sn">'+idx+'회 '+who+(r.timedout?' <span style="color:#ff9aa5">(자동)</span>':'')+'</span><span class="st">'+sec(r.time)+'초 · '+r.weight+'kg'+sub+'</span></div>');}
@@ -223,7 +224,7 @@
     raf=requestAnimationFrame(tick);
   }
   function logRep(time,timedout){
-    reps.push({side:active,time:time,weight:weight,timedout:!!timedout,splits:curSplits.slice()});
+    reps.push({side:active,time:time,weight:weight,timedout:!!timedout,mode:doneMode,splits:curSplits.slice()});
     repsAB[active]++;active=1-active;curSplits=[];
     updTurn();updReps();renderCur();renderSplits();updSplitLabel();
   }
@@ -251,12 +252,13 @@
     const rec={ts:Date.now(),limit:Math.round(limitMs/100)/10,aName:nm(0),bName:nm(1),a:repsAB[0],b:repsAB[1],reps:reps.slice()};
     const arr=load(K,[]);arr.unshift(rec);save(K,arr);renderRecs();
     // 구글시트로 회차별 한 줄씩 전송
-    const dsFull=new Date(rec.ts).toLocaleString();let n=0;const out=[];
+    const dsFull=new Date(rec.ts).toLocaleString();let ra=0,rb=0;const out=[];
     (rec.reps||[]).forEach(x=>{
       if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');
         out.push({'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':'','회차':'','구분':ev,'시간(초)':'','기둥무게(kg)':''});return;}
-      n++;const tgt=x.side===0?rec.aName:rec.bName;
-      const rowObj={'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':tgt,'회차':n,'구분':(x.timedout?'자동(초과)':'완료'),'시간(초)':+sec(x.time),'기둥무게(kg)':x.weight};
+      const tgt=x.side===0?rec.aName:rec.bName;const rnd=x.side===0?(++ra):(++rb);
+      const gubun=x.mode?(x.mode==='manual'?'타임어택':'셔틀런'):(x.timedout?'셔틀런':'타임어택');
+      const rowObj={'세션':rec.ts,'일시':dsFull,'제한시간(초)':rec.limit,'대상':tgt,'회차':rnd,'구분':gubun,'시간(초)':+sec(x.time),'기둥무게(kg)':x.weight};
       splitDeltas(x.splits).forEach(s=>{rowObj[s.name]=+sec(s.delta);}); // 구간별 열(구간 간 소요시간)
       out.push(rowObj);
     });
@@ -279,14 +281,15 @@
       const d=new Date(r.ts),p=n=>String(n).padStart(2,'0');
       const ds=(d.getMonth()+1)+"/"+d.getDate()+" "+p(d.getHours())+":"+p(d.getMinutes());
       const aN=esc(r.aName||'A'),bN=esc(r.bName||'B');
-      let n=0,body='';
+      let body='';
       body+='<div class="line"><span class="l">🔴 '+aN+'</span><span class="r">'+r.a+'회</span></div><div class="line"><span class="l">🔵 '+bN+'</span><span class="r">'+r.b+'회</span></div>';
       body+='<div class="line" style="border-top:1px dashed #26263a;margin-top:4px;padding-top:6px;"><span class="l" style="color:#8a8a9e;font-size:12px">회차별 기록</span></div>';
-      (r.reps||[]).forEach(x=>{
+      const roundOf={};let ra=0,rb=0;(r.reps||[]).forEach((x,i)=>{if(!x.marker)roundOf[i]=(x.side===0?(++ra):(++rb));});
+      (r.reps||[]).forEach((x,i)=>{
         if(x.marker){const txt=x.marker==='limit'?('⏱️ 제한시간 '+(x.value/1000).toFixed(1).replace(/\.0$/,'')+'초 변경'):('⚖️ 기둥 무게 '+x.value+'kg 변경');body+='<div class="line"><span class="l" style="color:#9a9ab0;font-size:12px">'+txt+'</span></div>';return;}
-        n++;const who=x.side===0?('🔴'+aN):('🔵'+bN);
+        const who=x.side===0?('🔴'+aN):('🔵'+bN);const gu=x.mode?(x.mode==='manual'?' (타임어택)':' (셔틀런)'):(x.timedout?' (자동)':'');
         const sub=(x.splits&&x.splits.length)?(' <span style="color:#6a6a7e;font-size:11px">['+splitDeltas(x.splits).map(s=>esc(s.name)+' '+sec(s.delta)).join(' / ')+']</span>'):'';
-        body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+n+'회 '+who+(x.timedout?' (자동)':'')+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
+        body+='<div class="line"><span class="l" style="color:#8a8a9e;font-size:13px">'+roundOf[i]+'회 '+who+gu+'</span><span class="r">'+sec(x.time)+'초 · '+x.weight+'kg'+sub+'</span></div>';
       });
       return '<div class="rec"><div class="rh"><span class="rt">🗿 '+r.limit+'초</span><span class="rd">'+ds+' <button class="delrec" data-ts="'+r.ts+'">✕</button></span></div>'+body+'</div>';
     }).join('');
@@ -299,11 +302,12 @@
   $('csvBtn').addEventListener('click',()=>{
     const arr=load(K,[]);if(!arr.length){alert('기록이 없어요');return;}
     let rows=[['일시','제한시간(초)','대상','회차','구분','시간(초)','기둥무게(kg)','구간스플릿(초)']];
-    arr.slice().reverse().forEach(r=>{const ds=new Date(r.ts).toLocaleString();const aN=r.aName||'A',bN=r.bName||'B';let n=0;
+    arr.slice().reverse().forEach(r=>{const ds=new Date(r.ts).toLocaleString();const aN=r.aName||'A',bN=r.bName||'B';let ra=0,rb=0;
       (r.reps||[]).forEach(x=>{
         if(x.marker){const ev=x.marker==='limit'?('제한시간변경 '+(x.value/1000).toFixed(1)+'초'):('기둥무게변경 '+x.value+'kg');rows.push([ds,r.limit,'','',ev,'','','']);return;}
-        n++;const tgt=x.side===0?aN:bN;
-        rows.push([ds,r.limit,tgt,n,(x.timedout?'자동(초과)':'완료'),sec(x.time),x.weight,splitDeltas(x.splits).map(s=>s.name+' '+sec(s.delta)).join(' / ')]);
+        const tgt=x.side===0?aN:bN;const rnd=x.side===0?(++ra):(++rb);
+        const gubun=x.mode?(x.mode==='manual'?'타임어택':'셔틀런'):(x.timedout?'셔틀런':'타임어택');
+        rows.push([ds,r.limit,tgt,rnd,gubun,sec(x.time),x.weight,splitDeltas(x.splits).map(s=>s.name+' '+sec(s.delta)).join(' / ')]);
       });
     });
     const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
