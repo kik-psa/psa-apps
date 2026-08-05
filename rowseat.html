@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="2";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="3";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -63,7 +63,7 @@
   <header>
     <h1>1Q 로잉 자리 배치</h1>
     <div class="sub">자리를 눌러 이름을 배정하세요 · <span class="cnt" id="cnt">0/48</span> 배정</div>
-    <div class="hint">8팟 × 6 (앞줄 3 · 뒷줄 3) · 좌하단 = 모니터/촬영</div>
+    <div class="hint">8팀(보트) × 6 · 배 모양 1·2·2·1 · 좌하단 = 모니터/촬영</div>
   </header>
   <div class="stagewrap" id="stagewrap">
     <div id="stage">
