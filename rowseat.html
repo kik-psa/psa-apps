@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="1";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="2";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -22,7 +22,7 @@
   .cnt{color:var(--gold);font-weight:800;}
   .hint{color:#667;font-size:11px;margin-top:2px;}
   .stagewrap{flex:1;overflow:auto;padding:6px;display:flex;justify-content:center;align-items:flex-start;}
-  #stage{position:relative;width:1760px;height:740px;background:linear-gradient(180deg,#0e0e16,#0a0a0f);border:1px solid var(--line);border-radius:14px;transform-origin:top center;flex:none;}
+  #stage{position:relative;width:1820px;height:800px;background:linear-gradient(180deg,#0e0e16,#0a0a0f);border:1px solid var(--line);border-radius:14px;transform-origin:top center;flex:none;}
   .seat{position:absolute;width:60px;height:50px;background:#1b1b28;border:1px solid #33334a;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:.1s;}
   .seat.empty{border-style:dashed;border-color:#3a3a52;background:#141420;}
   .seat.filled{background:#22314a;border-color:#3f6ea8;}
@@ -67,12 +67,11 @@
   </header>
   <div class="stagewrap" id="stagewrap">
     <div id="stage">
-      <svg class="cables" viewBox="0 0 1760 740" id="cables"></svg>
+      <svg class="cables" viewBox="0 0 1820 800" id="cables"></svg>
       <div class="mon"><div class="box">💻</div><div class="lb">노트북 · 촬영</div></div>
     </div>
   </div>
   <div class="toolbar">
-    <button id="zoomBtn">🔍 크게보기</button>
     <button id="saveBtn">⬇ 이미지 저장</button>
     <button id="clrBtn">전체 초기화</button>
   </div>
@@ -110,44 +109,36 @@
   let data=load();          // {seatNum: name}
   let curSeat=null;
   const stage=$('stage'), cables=$('cables');
-  const SW=1760, SH=740, CW=60, CH=50;
+  const SW=1820, SH=800, CW=54, CH=44, RY=60, CWD=36;
 
-  // ---- layout: 8 pods, each front row(3)+back row(3) along a rainbow arc ----
-  const seats=[]; // {n, x, y}
-  const podCX=[];
+  // ---- layout: 8 boats(teams) fanned in an arc; each boat = 1 / 2 / 2 / 1 shape ----
+  const seats=[];   // {n,x,y}
+  const HULLS=[];   // svg path per boat
   for(let p=0;p<8;p++){
     const t=(p+0.5)/8;
-    const cx=170 + t*(SW-260);           // 170..1670
-    podCX.push(cx);
+    const cx=160 + t*(SW-320);
     const nx=(cx-SW/2)/(SW/2);
-    const backY=150 + nx*nx*250;          // rainbow: 150 center → 400 ends
-    const frontY=backY+140;
-    const sp=CW+6;
-    for(let i=0;i<3;i++){                  // front (inner) 6p+1..3
-      seats.push({n:6*p+1+i, x:cx+(i-1)*sp - CW/2, y:frontY});
-    }
-    for(let i=0;i<3;i++){                  // back (outer) 6p+4..6
-      seats.push({n:6*p+4+i, x:cx+(i-1)*sp - CW/2, y:backY});
-    }
+    const cy=300 + nx*nx*170;              // rainbow center per boat
+    const ang=nx*18*Math.PI/180;           // fan tilt
+    const ca=Math.cos(ang), sa=Math.sin(ang);
+    const loc=[[0,-1.5*RY],[-CWD,-0.5*RY],[CWD,-0.5*RY],[-CWD,0.5*RY],[CWD,0.5*RY],[0,1.5*RY]];
+    loc.forEach((o,i)=>{
+      const rx=o[0]*ca-o[1]*sa, ry=o[0]*sa+o[1]*ca;
+      seats.push({n:6*p+1+i, x:cx+rx-CW/2, y:cy+ry-CH/2});
+    });
+    const hh=1.5*RY+CH/2+22, hw=CWD+CW/2+16;
+    const RT=(x,y)=>[cx+(x*ca-y*sa), cy+(x*sa+y*ca)];
+    const tp=RT(0,-hh), bt=RT(0,hh), cr=RT(hw,0), cl=RT(-hw,0);
+    HULLS.push(`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Q${cr[0].toFixed(1)} ${cr[1].toFixed(1)} ${bt[0].toFixed(1)} ${bt[1].toFixed(1)} Q${cl[0].toFixed(1)} ${cl[1].toFixed(1)} ${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Z`);
   }
   const seatByN={}; seats.forEach(s=>seatByN[s.n]=s);
 
   function seatCenter(n){const s=seatByN[n];return {x:s.x+CW/2,y:s.y+CH/2};}
-  function drawCables(){
-    // subtle guide lines: monitor -> pod1, and connect front row & back row per pod
+  function drawHulls(){
     let d='';
-    const mon={x:100,y:672};
-    // monitor to first front & back
-    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(1).x} ${seatCenter(1).y}" stroke="#3a3a52" stroke-width="2" fill="none"/>`;
-    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(4).x} ${seatCenter(4).y}" stroke="#3a3a52" stroke-width="2" fill="none"/>`;
-    for(let p=0;p<8;p++){
-      const fr=[6*p+1,6*p+2,6*p+3].map(seatCenter);
-      const bk=[6*p+4,6*p+5,6*p+6].map(seatCenter);
-      d+=`<path d="M${fr[0].x} ${fr[0].y} L${fr[1].x} ${fr[1].y} L${fr[2].x} ${fr[2].y}" stroke="#2f3350" stroke-width="2" fill="none"/>`;
-      d+=`<path d="M${bk[0].x} ${bk[0].y} L${bk[1].x} ${bk[1].y} L${bk[2].x} ${bk[2].y}" stroke="#3a3350" stroke-width="2" fill="none"/>`;
-      // link pods
-      if(p<7){const nf=seatCenter(6*(p+1)+1);d+=`<path d="M${fr[2].x} ${fr[2].y} L${nf.x} ${nf.y}" stroke="#242438" stroke-width="2" fill="none"/>`;}
-    }
+    HULLS.forEach(h=>{ d+=`<path d="${h}" fill="#131b2a" stroke="#3c4c68" stroke-width="2.5"/>`; });
+    const mon={x:92,y:SH-92};
+    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(6).x} ${seatCenter(6).y}" stroke="#33334a" stroke-width="2" fill="none"/>`;
     cables.innerHTML=d;
   }
 
@@ -165,7 +156,7 @@
     const filled=Object.values(data).filter(Boolean).length;
     $('cnt').textContent=filled+'/48';
   }
-  drawCables(); render();
+  drawHulls(); render();
 
   // ---- assign modal ----
   function usedMap(){const m={};Object.entries(data).forEach(([n,v])=>{if(v)m[v]=n;});return m;}
@@ -212,12 +203,6 @@
     stage.dataset.scale=sc;
   }
   window.addEventListener('resize',fit); fit();
-  let zoomed=false;
-  $('zoomBtn').addEventListener('click',()=>{
-    zoomed=!zoomed;
-    if(zoomed){stage.style.transform='scale(1)';$('zoomBtn').textContent='🔍 맞춤보기';}
-    else{fit();$('zoomBtn').textContent='🔍 크게보기';}
-  });
 
   // ---- PNG export ----
   $('saveBtn').addEventListener('click',()=>{
