@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>1Q 로잉 자리 배치</title>
+<script>
+/* 자동 캐시 무효화 */
+(function(){var V="1";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+</script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9a9aab;--accent:#37d67a;--gold:#ffd54a;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",Roboto,sans-serif;}
+  body{display:flex;flex-direction:column;min-height:100%;padding:env(safe-area-inset-top) 0 0;}
+  header{padding:10px 14px 6px;text-align:center;}
+  header h1{font-size:clamp(16px,4.4vw,20px);font-weight:800;}
+  header .sub{color:var(--muted);font-size:12px;margin-top:2px;}
+  .cnt{color:var(--gold);font-weight:800;}
+  .hint{color:#667;font-size:11px;margin-top:2px;}
+  .stagewrap{flex:1;overflow:auto;padding:6px;display:flex;justify-content:center;align-items:flex-start;}
+  #stage{position:relative;width:1760px;height:740px;background:linear-gradient(180deg,#0e0e16,#0a0a0f);border:1px solid var(--line);border-radius:14px;transform-origin:top center;flex:none;}
+  .seat{position:absolute;width:60px;height:50px;background:#1b1b28;border:1px solid #33334a;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:.1s;}
+  .seat.empty{border-style:dashed;border-color:#3a3a52;background:#141420;}
+  .seat.filled{background:#22314a;border-color:#3f6ea8;}
+  .seat:active{transform:scale(.94);}
+  .seat .num{position:absolute;top:2px;left:4px;font-size:9.5px;font-weight:800;color:var(--gold);line-height:1;}
+  .seat .nm{font-size:10.5px;font-weight:700;line-height:1.05;text-align:center;padding:8px 3px 2px;word-break:break-all;}
+  .seat.empty .nm{color:#4a4a63;font-weight:600;}
+  .mon{position:absolute;left:26px;bottom:20px;width:120px;text-align:center;}
+  .mon .box{width:74px;height:52px;border:2px solid #6a6a80;border-radius:6px;margin:0 auto;background:#12121c;display:flex;align-items:center;justify-content:center;font-size:20px;}
+  .mon .lb{font-size:12px;color:var(--muted);margin-top:5px;font-weight:700;}
+  svg.cables{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .toolbar{display:flex;gap:8px;padding:10px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0d0d15;}
+  .toolbar button{flex:1;height:48px;border:none;border-radius:12px;font-weight:800;font-size:14px;}
+  #saveBtn{background:var(--accent);color:#0a0a0f;} #zoomBtn{background:#22303a;color:#8fd6ff;} #clrBtn{background:#3a2226;color:#ff9aa5;}
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:20;}
+  .ov.on{display:flex;}
+  .sheet{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;max-height:86vh;display:flex;flex-direction:column;}
+  .sheet .sh{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;}
+  .sheet .sh .tt{font-size:17px;font-weight:800;flex:1;}
+  .sheet .sh .cls{background:#2a2a3c;border:none;color:var(--text);border-radius:9px;padding:8px 12px;font-weight:800;}
+  .free{display:flex;gap:8px;padding:4px 16px 10px;}
+  .free input{flex:1;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px;font-size:15px;}
+  .free button{background:var(--accent);color:#0a0a0f;border:none;border-radius:10px;padding:0 16px;font-weight:800;}
+  .srch{padding:0 16px 8px;}
+  .srch input{width:100%;background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px;font-size:14px;}
+  .roster{overflow-y:auto;padding:0 12px 12px;}
+  .grp{margin-top:8px;}
+  .grp .gt{font-size:12px;color:var(--muted);font-weight:800;padding:6px 4px 4px;position:sticky;top:0;background:var(--panel);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{background:#1c1c28;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13.5px;font-weight:700;}
+  .chip.used{opacity:.5;}
+  .chip .at{color:var(--gold);font-size:11px;font-weight:800;margin-left:5px;}
+  .clrseat{margin:2px 16px 14px;background:#3a2226;color:#ff9aa5;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>1Q 로잉 자리 배치</h1>
+    <div class="sub">자리를 눌러 이름을 배정하세요 · <span class="cnt" id="cnt">0/48</span> 배정</div>
+    <div class="hint">8팟 × 6 (앞줄 3 · 뒷줄 3) · 좌하단 = 모니터/촬영</div>
+  </header>
+  <div class="stagewrap" id="stagewrap">
+    <div id="stage">
+      <svg class="cables" viewBox="0 0 1760 740" id="cables"></svg>
+      <div class="mon"><div class="box">💻</div><div class="lb">노트북 · 촬영</div></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button id="zoomBtn">🔍 크게보기</button>
+    <button id="saveBtn">⬇ 이미지 저장</button>
+    <button id="clrBtn">전체 초기화</button>
+  </div>
+
+  <div class="ov" id="ov">
+    <div class="sheet">
+      <div class="sh"><span class="tt" id="mTitle">자리 배정</span><button class="cls" id="mClose">닫기</button></div>
+      <div class="free"><input id="freeInput" type="text" placeholder="직접 입력 (자유 입력)"><button id="freeSet">지정</button></div>
+      <div class="srch"><input id="srch" type="text" placeholder="출연진 검색 (이름/국가)"></div>
+      <div class="roster" id="roster"></div>
+      <button class="clrseat" id="clrSeat">이 자리 비우기</button>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+  const K="rowseat_v1";
+  const $=id=>document.getElementById(id);
+  const load=()=>{try{return JSON.parse(localStorage.getItem(K))||{};}catch(e){return {};}};
+  const save=o=>{try{localStorage.setItem(K,JSON.stringify(o));}catch(e){}};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  const ROSTER=[
+    ["대한민국",["아모띠(김재홍)","고석현","김민서","안창림","윤현지","정예진"]],
+    ["몽골",["어르헝바야르","빌궁","바트수리","척트바타르","다바나산","아나르"]],
+    ["일본",["카게우라 고코로","미우라 코타","이토이 요시오","쿠리하라 다카시","나가이 네네","카가미 유카"]],
+    ["호주",["에디 윌리엄스","조시 케네디","타이슨 페드로","히스 소프","모건 미첼","재스민 파"]],
+    ["인도",["라훌 차우다리","비크람 싱","만 샤르마","로힛 토카스","리투 포갓","가리마 차우다리"]],
+    ["우즈베키스탄",["묵슨","아지즈벡","샤크람","마크","미르자에바","니기나"]],
+    ["사우디아라비아",["탈랄 알아바시","탈랄 하우사","파이살 쿠르디","살레 알아킬","왈라 알야마니","손도스 알샤리프"]],
+    ["뉴질랜드",["스콧 커리","매튜 래그","히코 커티스","마크 제이콥스","밀라 뷰캐넌","메이시 프레이저"]]
+  ];
+
+  let data=load();          // {seatNum: name}
+  let curSeat=null;
+  const stage=$('stage'), cables=$('cables');
+  const SW=1760, SH=740, CW=60, CH=50;
+
+  // ---- layout: 8 pods, each front row(3)+back row(3) along a rainbow arc ----
+  const seats=[]; // {n, x, y}
+  const podCX=[];
+  for(let p=0;p<8;p++){
+    const t=(p+0.5)/8;
+    const cx=170 + t*(SW-260);           // 170..1670
+    podCX.push(cx);
+    const nx=(cx-SW/2)/(SW/2);
+    const backY=150 + nx*nx*250;          // rainbow: 150 center → 400 ends
+    const frontY=backY+140;
+    const sp=CW+6;
+    for(let i=0;i<3;i++){                  // front (inner) 6p+1..3
+      seats.push({n:6*p+1+i, x:cx+(i-1)*sp - CW/2, y:frontY});
+    }
+    for(let i=0;i<3;i++){                  // back (outer) 6p+4..6
+      seats.push({n:6*p+4+i, x:cx+(i-1)*sp - CW/2, y:backY});
+    }
+  }
+  const seatByN={}; seats.forEach(s=>seatByN[s.n]=s);
+
+  function seatCenter(n){const s=seatByN[n];return {x:s.x+CW/2,y:s.y+CH/2};}
+  function drawCables(){
+    // subtle guide lines: monitor -> pod1, and connect front row & back row per pod
+    let d='';
+    const mon={x:100,y:672};
+    // monitor to first front & back
+    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(1).x} ${seatCenter(1).y}" stroke="#3a3a52" stroke-width="2" fill="none"/>`;
+    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(4).x} ${seatCenter(4).y}" stroke="#3a3a52" stroke-width="2" fill="none"/>`;
+    for(let p=0;p<8;p++){
+      const fr=[6*p+1,6*p+2,6*p+3].map(seatCenter);
+      const bk=[6*p+4,6*p+5,6*p+6].map(seatCenter);
+      d+=`<path d="M${fr[0].x} ${fr[0].y} L${fr[1].x} ${fr[1].y} L${fr[2].x} ${fr[2].y}" stroke="#2f3350" stroke-width="2" fill="none"/>`;
+      d+=`<path d="M${bk[0].x} ${bk[0].y} L${bk[1].x} ${bk[1].y} L${bk[2].x} ${bk[2].y}" stroke="#3a3350" stroke-width="2" fill="none"/>`;
+      // link pods
+      if(p<7){const nf=seatCenter(6*(p+1)+1);d+=`<path d="M${fr[2].x} ${fr[2].y} L${nf.x} ${nf.y}" stroke="#242438" stroke-width="2" fill="none"/>`;}
+    }
+    cables.innerHTML=d;
+  }
+
+  function render(){
+    stage.querySelectorAll('.seat').forEach(e=>e.remove());
+    seats.forEach(s=>{
+      const nm=data[s.n];
+      const el=document.createElement('div');
+      el.className='seat '+(nm?'filled':'empty');
+      el.style.left=s.x+'px'; el.style.top=s.y+'px';
+      el.innerHTML='<span class="num">'+s.n+'</span><span class="nm">'+(nm?esc(nm):'')+'</span>';
+      el.addEventListener('click',()=>openSeat(s.n));
+      stage.appendChild(el);
+    });
+    const filled=Object.values(data).filter(Boolean).length;
+    $('cnt').textContent=filled+'/48';
+  }
+  drawCables(); render();
+
+  // ---- assign modal ----
+  function usedMap(){const m={};Object.entries(data).forEach(([n,v])=>{if(v)m[v]=n;});return m;}
+  function openSeat(n){
+    curSeat=n; $('mTitle').textContent=n+'번 자리 배정';
+    $('freeInput').value=data[n]||''; $('srch').value='';
+    renderRoster(''); $('ov').classList.add('on');
+  }
+  function renderRoster(q){
+    const used=usedMap(); q=(q||'').trim();
+    let html='';
+    ROSTER.forEach(([country,names])=>{
+      const items=names.filter(nm=>!q || nm.includes(q) || country.includes(q));
+      if(!items.length)return;
+      html+='<div class="grp"><div class="gt">'+country+'</div><div class="chips">';
+      items.forEach(nm=>{
+        const at=used[nm]; const cls='chip'+(at&&at!=curSeat?' used':'');
+        html+='<button class="'+cls+'" data-nm="'+esc(nm)+'">'+esc(nm)+(at?'<span class="at">'+at+'번</span>':'')+'</button>';
+      });
+      html+='</div></div>';
+    });
+    $('roster').innerHTML=html;
+    $('roster').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>assign(b.dataset.nm)));
+  }
+  function assign(nm){
+    // if name already on another seat, move it (clear old)
+    for(const k in data){ if(data[k]===nm && k!=curSeat) delete data[k]; }
+    data[curSeat]=nm; save(data); render(); close();
+  }
+  function close(){$('ov').classList.remove('on');}
+  $('freeSet').addEventListener('click',()=>{const v=$('freeInput').value.trim(); if(v){assign(v);} else {delete data[curSeat];save(data);render();close();}});
+  $('freeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){$('freeSet').click();}});
+  $('srch').addEventListener('input',e=>renderRoster(e.target.value));
+  $('clrSeat').addEventListener('click',()=>{delete data[curSeat];save(data);render();close();});
+  $('mClose').addEventListener('click',close);
+  $('ov').addEventListener('click',e=>{if(e.target===$('ov'))close();});
+
+  // ---- fit to width ----
+  function fit(){
+    const wrap=$('stagewrap'); const avail=wrap.clientWidth-12;
+    const sc=Math.min(1, avail/SW);
+    stage.style.transform='scale('+sc+')';
+    wrap.style.minHeight=(SH*sc+20)+'px';
+    stage.dataset.scale=sc;
+  }
+  window.addEventListener('resize',fit); fit();
+  let zoomed=false;
+  $('zoomBtn').addEventListener('click',()=>{
+    zoomed=!zoomed;
+    if(zoomed){stage.style.transform='scale(1)';$('zoomBtn').textContent='🔍 맞춤보기';}
+    else{fit();$('zoomBtn').textContent='🔍 크게보기';}
+  });
+
+  // ---- PNG export ----
+  $('saveBtn').addEventListener('click',()=>{
+    const prev=stage.style.transform; stage.style.transform='scale(1)';
+    $('saveBtn').textContent='저장 중...';
+    html2canvas(stage,{backgroundColor:'#0a0a0f',scale:2,useCORS:true}).then(cv=>{
+      stage.style.transform=prev; $('saveBtn').textContent='⬇ 이미지 저장';
+      const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='1Q_로잉_자리배치.png'; a.click();
+    }).catch(()=>{stage.style.transform=prev;$('saveBtn').textContent='⬇ 이미지 저장';alert('저장 실패 - 화면 캡처를 이용해주세요');});
+  });
+
+  $('clrBtn').addEventListener('click',()=>{if(confirm('모든 배정을 초기화할까요?')){data={};save(data);render();}});
+})();
+</script>
+</body>
+</html>
