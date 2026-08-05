@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="3";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="4";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -122,9 +122,10 @@
     const ang=nx*18*Math.PI/180;           // fan tilt
     const ca=Math.cos(ang), sa=Math.sin(ang);
     const loc=[[0,-1.5*RY],[-CWD,-0.5*RY],[CWD,-0.5*RY],[-CWD,0.5*RY],[CWD,0.5*RY],[0,1.5*RY]];
+    const ord=[6,4,5,2,3,1]; // 위치(뱃머리→꼬리) 순서로 번호 매핑: 꼬리=1 … 뱃머리=6
     loc.forEach((o,i)=>{
       const rx=o[0]*ca-o[1]*sa, ry=o[0]*sa+o[1]*ca;
-      seats.push({n:6*p+1+i, x:cx+rx-CW/2, y:cy+ry-CH/2});
+      seats.push({n:6*p+ord[i], x:cx+rx-CW/2, y:cy+ry-CH/2});
     });
     const hh=1.5*RY+CH/2+22, hw=CWD+CW/2+16;
     const RT=(x,y)=>[cx+(x*ca-y*sa), cy+(x*sa+y*ca)];
@@ -138,7 +139,7 @@
     let d='';
     HULLS.forEach(h=>{ d+=`<path d="${h}" fill="#131b2a" stroke="#3c4c68" stroke-width="2.5"/>`; });
     const mon={x:92,y:SH-92};
-    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(6).x} ${seatCenter(6).y}" stroke="#33334a" stroke-width="2" fill="none"/>`;
+    d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(1).x} ${seatCenter(1).y}" stroke="#33334a" stroke-width="2" fill="none"/>`;
     cables.innerHTML=d;
   }
 
