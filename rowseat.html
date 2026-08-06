@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="6";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="7";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -26,6 +26,12 @@
   .mbtn span{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:3px;}
   .mbtn.shoot{background:#2f6f4a;color:#fff;} .mbtn.sim{background:#3a4a6a;color:#cfe3ff;}
   .boatlabel{position:absolute;transform:translateX(-50%);background:rgba(255,213,74,0.15);border:1px solid rgba(255,213,74,0.55);color:var(--gold);font-weight:800;font-size:16px;padding:2px 12px;border-radius:13px;white-space:nowrap;pointer-events:none;}
+  .imgov{position:fixed;inset:0;background:#000;z-index:40;display:none;flex-direction:column;}
+  .imgov.on{display:flex;}
+  .imgov .imgbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:#15151f;color:var(--text);font-weight:800;font-size:14px;}
+  .imgov .imgbar button{background:#2a2a3c;border:none;color:var(--text);border-radius:9px;padding:9px 13px;font-weight:800;flex:none;}
+  .imgov .imgwrap{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:6px;}
+  .imgov img{max-width:100%;height:auto;}
   header h1{font-size:clamp(16px,4.4vw,20px);font-weight:800;}
   header .sub{color:var(--muted);font-size:12px;margin-top:2px;}
   .cnt{color:var(--gold);font-weight:800;}
@@ -251,12 +257,37 @@
   window.addEventListener('resize',fit); fit();
 
   // ---- PNG export ----
+  const isMobile=/iP(hone|ad|od)|Android/i.test(navigator.userAgent);
+  function showImgOverlay(url){
+    let ov=$('imgov');
+    if(!ov){
+      ov=document.createElement('div'); ov.id='imgov'; ov.className='imgov';
+      ov.innerHTML='<div class="imgbar"><span>이미지를 길게 눌러 "사진에 저장"하세요</span><button id="imgClose">닫기</button></div><div class="imgwrap"><img></div>';
+      document.body.appendChild(ov);
+      ov.querySelector('#imgClose').addEventListener('click',()=>ov.classList.remove('on'));
+    }
+    ov.querySelector('img').src=url; ov.classList.add('on');
+  }
   $('saveBtn').addEventListener('click',()=>{
     const prev=stage.style.transform; stage.style.transform='scale(1)';
     $('saveBtn').textContent='저장 중...';
-    html2canvas(stage,{backgroundColor:'#0a0a0f',scale:2,useCORS:true}).then(cv=>{
+    html2canvas(stage,{backgroundColor:'#0a0a0f',scale:isMobile?1.6:2,useCORS:true}).then(cv=>{
       stage.style.transform=prev; $('saveBtn').textContent='⬇ 이미지 저장';
-      const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='1Q_로잉_자리배치.png'; a.click();
+      cv.toBlob(function(blob){
+        if(!blob){ showImgOverlay(cv.toDataURL('image/png')); return; }
+        const file=new File([blob],'1Q_로잉_자리배치.png',{type:'image/png'});
+        // 1) 모바일: 공유 시트(사진 저장)
+        if(navigator.canShare && navigator.canShare({files:[file]})){
+          navigator.share({files:[file],title:'1Q 로잉 자리 배치'}).catch(()=>{ showImgOverlay(URL.createObjectURL(blob)); });
+          return;
+        }
+        // 2) 데스크톱: 다운로드
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='1Q_로잉_자리배치.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),5000);
+        if(isMobile) showImgOverlay(url);   // 다운로드 미지원 대비
+      },'image/png');
     }).catch(()=>{stage.style.transform=prev;$('saveBtn').textContent='⬇ 이미지 저장';alert('저장 실패 - 화면 캡처를 이용해주세요');});
   });
 
