@@ -9,14 +9,23 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="5";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="6";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9a9aab;--accent:#37d67a;--gold:#ffd54a;}
   html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",Roboto,sans-serif;}
   body{display:flex;flex-direction:column;min-height:100%;padding:env(safe-area-inset-top) 0 0;}
-  header{padding:10px 14px 6px;text-align:center;}
+  header{padding:10px 14px 6px;text-align:center;position:relative;}
+  .modeBtn{position:absolute;top:8px;right:10px;background:#22303a;border:1px solid var(--line);color:#8fd6ff;border-radius:10px;padding:7px 10px;font-weight:800;font-size:12px;}
+  .modeov{align-items:center !important;}
+  .modecard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px 22px;width:calc(100% - 44px);max-width:380px;text-align:center;}
+  .modecard .mt{font-size:20px;font-weight:900;}
+  .modecard .ms{color:var(--muted);font-size:13px;margin:6px 0 18px;}
+  .mbtn{display:block;width:100%;border:none;border-radius:14px;padding:15px 16px;margin-top:10px;font-size:17px;font-weight:800;text-align:left;}
+  .mbtn span{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:3px;}
+  .mbtn.shoot{background:#2f6f4a;color:#fff;} .mbtn.sim{background:#3a4a6a;color:#cfe3ff;}
+  .boatlabel{position:absolute;transform:translateX(-50%);background:rgba(255,213,74,0.15);border:1px solid rgba(255,213,74,0.55);color:var(--gold);font-weight:800;font-size:16px;padding:2px 12px;border-radius:13px;white-space:nowrap;pointer-events:none;}
   header h1{font-size:clamp(16px,4.4vw,20px);font-weight:800;}
   header .sub{color:var(--muted);font-size:12px;margin-top:2px;}
   .cnt{color:var(--gold);font-weight:800;}
@@ -63,6 +72,7 @@
 </head>
 <body>
   <header>
+    <button id="modeBtn" class="modeBtn">용도 ▾</button>
     <h1>1Q 로잉 자리 배치</h1>
     <div class="sub">자리를 눌러 이름을 배정하세요 · <span class="cnt" id="cnt">0/48</span> 배정</div>
     <div class="hint">8팀(보트) × 6 · 좌하단 Data Center · 손가락으로 밀어(스크롤) 보세요</div>
@@ -78,6 +88,14 @@
     <button id="clrBtn">전체 초기화</button>
   </div>
 
+  <div class="ov modeov" id="modeSel">
+    <div class="modecard">
+      <div class="mt">1Q 로잉 자리 배치</div>
+      <div class="ms">용도를 선택하세요</div>
+      <button class="mbtn shoot" data-m="촬영">🎬 촬영용<span>확정 출연진 명단 + 직접 입력</span></button>
+      <button class="mbtn sim" data-m="시뮬">🧪 시뮬레이션용<span>직접 입력만 (명단 없음)</span></button>
+    </div>
+  </div>
   <div class="ov" id="ov">
     <div class="sheet">
       <div class="sh"><span class="tt" id="mTitle">자리 배정</span><button class="cls" id="mClose">닫기</button></div>
@@ -108,6 +126,7 @@
     ["뉴질랜드",["스콧 커리","매튜 래그","히코 커티스","마크 제이콥스","밀라 뷰캐넌","메이시 프레이저"]]
   ];
 
+  let mode = localStorage.getItem('rowseat_mode')||'';  // '촬영' | '시뮬'
   let data=load();          // {seatNum:{o:소속,n:이름}}
   Object.keys(data).forEach(k=>{ if(typeof data[k]==='string') data[k]={o:'',n:data[k]}; });
   const ORG={"대한민국":"KOR","몽골":"MGL","일본":"JPN","호주":"AUS","인도":"IND","우즈베키스탄":"UZB","사우디아라비아":"KSA","뉴질랜드":"NZL"};
@@ -118,6 +137,7 @@
   // ---- layout: 8 boats(teams) fanned in an arc; each boat = 1 / 2 / 2 / 1 shape ----
   const seats=[];   // {n,x,y}
   const HULLS=[];   // svg path per boat
+  const BMETA=[];   // {cx,ty} per boat for team label
   for(let p=0;p<8;p++){
     const t=(p+0.5)/8;
     const cx=160 + t*(SW-320);
@@ -134,6 +154,7 @@
     const hh=1.5*RY+CH/2+22, hw=CWD+CW/2+16;
     const RT=(x,y)=>[cx+(x*ca-y*sa), cy+(x*sa+y*ca)];
     const tp=RT(0,-hh), bt=RT(0,hh), cr=RT(hw,0), cl=RT(-hw,0);
+    BMETA.push({cx:cx, ty:tp[1]});
     HULLS.push(`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Q${cr[0].toFixed(1)} ${cr[1].toFixed(1)} ${bt[0].toFixed(1)} ${bt[1].toFixed(1)} Q${cl[0].toFixed(1)} ${cl[1].toFixed(1)} ${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Z`);
   }
   const seatByN={}; seats.forEach(s=>seatByN[s.n]=s);
@@ -147,8 +168,12 @@
     cables.innerHTML=d;
   }
 
+  function boatOrg(p){
+    const c={}; for(let i=1;i<=6;i++){const v=data[6*p+i]; if(v&&v.o){c[v.o]=(c[v.o]||0)+1;}}
+    let b='',bc=0; for(const k in c){ if(c[k]>bc){bc=c[k];b=k;} } return b;
+  }
   function render(){
-    stage.querySelectorAll('.seat').forEach(e=>e.remove());
+    stage.querySelectorAll('.seat,.boatlabel').forEach(e=>e.remove());
     seats.forEach(s=>{
       const v=data[s.n];
       const el=document.createElement('div');
@@ -161,6 +186,15 @@
       el.addEventListener('click',()=>openSeat(s.n));
       stage.appendChild(el);
     });
+    for(let p=0;p<8;p++){
+      const org=boatOrg(p);
+      if(org){
+        const m=BMETA[p]; const lb=document.createElement('div');
+        lb.className='boatlabel'; lb.textContent=org;
+        lb.style.left=m.cx+'px'; lb.style.top=(m.ty-34)+'px';
+        stage.appendChild(lb);
+      }
+    }
     const filled=Object.values(data).filter(v=>v&&v.n).length;
     $('cnt').textContent=filled+'/48';
   }
@@ -172,7 +206,11 @@
     curSeat=n; $('mTitle').textContent=n+'번 자리 배정';
     const v=data[n]||{o:'',n:''};
     $('orgInput').value=v.o||''; $('freeInput').value=v.n||''; $('srch').value='';
-    renderRoster(''); $('ov').classList.add('on');
+    const sim=(mode==='시뮬');
+    document.querySelector('.srch').style.display=sim?'none':'';
+    $('roster').style.display=sim?'none':'';
+    if(!sim) renderRoster('');
+    $('ov').classList.add('on');
   }
   function renderRoster(q){
     const used=usedMap(); q=(q||'').trim();
@@ -223,6 +261,14 @@
   });
 
   $('clrBtn').addEventListener('click',()=>{if(confirm('모든 배정을 초기화할까요?')){data={};save(data);render();}});
+
+  // ---- 모드 선택 (촬영용 / 시뮬용) ----
+  function updateModeUI(){ $('modeBtn').textContent = mode==='시뮬' ? '시뮬레이션용 ▾' : (mode==='촬영'?'촬영용 ▾':'용도 ▾'); }
+  function setMode(m){ mode=m; localStorage.setItem('rowseat_mode',m); $('modeSel').classList.remove('on'); updateModeUI(); }
+  $('modeSel').querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
+  $('modeBtn').addEventListener('click',()=>$('modeSel').classList.add('on'));
+  updateModeUI();
+  if(!mode){ $('modeSel').classList.add('on'); }
 })();
 </script>
 </body>
