@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>1Q 타이머</title>
+<script>
+/* 자동 캐시 무효화 */
+(function(){var V="1";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.onetimer&&String(j.onetimer)!==V&&location.search.indexOf("v="+j.onetimer)===-1){location.replace(location.pathname+"?v="+j.onetimer);}}).catch(function(){});}catch(e){}})();
+</script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;overflow:hidden;}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;cursor:default;}
+  #clock{font-weight:800;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.02em;white-space:nowrap;
+         font-size:min(33vw,63vh);color:#fff;transition:color .15s;}
+  #clock.red{color:#ff2e2e;}
+  #clock.done{animation:blink 1s steps(2,start) infinite;}
+  @keyframes blink{50%{opacity:.15;}}
+  /* control bar */
+  #bar{position:fixed;left:0;right:0;bottom:0;background:rgba(15,15,20,.92);border-top:1px solid #26263a;
+       padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;
+       transition:opacity .3s,transform .3s;z-index:10;}
+  #bar.hide{opacity:0;transform:translateY(100%);pointer-events:none;}
+  .grp{display:flex;align-items:center;gap:6px;background:#15151f;border:1px solid #26263a;border-radius:12px;padding:8px 10px;}
+  .grp label{font-size:12px;color:#9a9aab;font-weight:700;}
+  .grp input{width:58px;background:#0e0e16;border:1px solid #26263a;color:#fff;border-radius:8px;padding:8px;font-size:16px;text-align:center;font-weight:700;}
+  .grp .sep{font-weight:800;color:#9a9aab;}
+  .grp .dot{width:12px;height:12px;border-radius:50%;background:#ff2e2e;}
+  #bar button{border:none;border-radius:12px;font-weight:800;font-size:15px;padding:0 16px;height:46px;color:#fff;}
+  #startBtn{background:#37d67a;color:#06210f;} #pauseBtn{background:#3a3a4c;} #resetBtn{background:#4a1f26;color:#ff9aa5;} #fsBtn{background:#22303a;color:#8fd6ff;}
+  #hint{position:fixed;top:10px;left:0;right:0;text-align:center;color:#33333f;font-size:12px;transition:opacity .3s;z-index:9;}
+  #hint.hide{opacity:0;}
+  @media(min-width:700px){ #bar button{font-size:16px;height:50px;} .grp input{font-size:18px;width:64px;} }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="clock">15:00</div></div>
+  <div id="hint">스페이스=시작/정지 · R=리셋 · F=전체화면 · 화면 탭=메뉴</div>
+  <div id="bar">
+    <div class="grp"><label>시간</label><input id="mm" type="number" min="0" value="15"><span class="sep">:</span><input id="ss" type="number" min="0" max="59" value="00"></div>
+    <div class="grp"><span class="dot"></span><label>빨강 전환 남은</label><input id="rmm" type="number" min="0" value="1"><span class="sep">:</span><input id="rss" type="number" min="0" max="59" value="00"></div>
+    <button id="startBtn">▶ 시작</button>
+    <button id="pauseBtn">⏸ 일시정지</button>
+    <button id="resetBtn">↺ 리셋</button>
+    <button id="fsBtn">⛶ 전체화면</button>
+  </div>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const K="onetimer_v1";
+  const clock=$('clock'), bar=$('bar'), hint=$('hint');
+  let limitMs=15*60000, redMs=60000, running=false, raf=null, startT=0, pausedRemain=null;
+
+  // ---- audio ----
+  let ac=null;
+  function beep(f,d){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.001,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.4,ac.currentTime+0.02);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d);}catch(e){}}
+
+  function fmt(ms){
+    let s=Math.max(0,Math.ceil(ms/1000));
+    const h=Math.floor(s/3600); s-=h*3600;
+    const m=Math.floor(s/60); s-=m*60;
+    const p=n=>String(n).padStart(2,'0');
+    return h>0 ? h+':'+p(m)+':'+p(s) : p(m)+':'+p(s);
+  }
+  function show(ms){
+    clock.textContent=fmt(ms);
+    clock.classList.toggle('red', ms<=redMs && ms>0);
+    clock.classList.toggle('done', ms<=0);
+  }
+
+  function readInputs(){
+    const mm=Math.max(0,parseInt($('mm').value)||0), ss=Math.min(59,Math.max(0,parseInt($('ss').value)||0));
+    const rmm=Math.max(0,parseInt($('rmm').value)||0), rss=Math.min(59,Math.max(0,parseInt($('rss').value)||0));
+    limitMs=(mm*60+ss)*1000; redMs=(rmm*60+rss)*1000;
+    save();
+  }
+  function save(){try{localStorage.setItem(K,JSON.stringify({limitMs,redMs}));}catch(e){}}
+  function load(){try{const v=JSON.parse(localStorage.getItem(K));if(v){limitMs=v.limitMs;redMs=v.redMs;
+    const t=Math.round(limitMs/1000),r=Math.round(redMs/1000);
+    $('mm').value=Math.floor(t/60); $('ss').value=String(t%60).padStart(2,'0');
+    $('rmm').value=Math.floor(r/60); $('rss').value=String(r%60).padStart(2,'0');
+  }}catch(e){}}
+
+  let lastBeep=-1;
+  function tick(){
+    if(!running)return;
+    const rem=limitMs-(performance.now()-startT);
+    if(rem<=0){ running=false; if(raf)cancelAnimationFrame(raf); show(0); beep(880,0.5); $('pauseBtn').textContent="⏸ 일시정지"; return; }
+    show(rem);
+    // last-3s tick + threshold moment
+    const s=Math.ceil(rem/1000);
+    if(rem<=redMs && s!==lastBeep && s<=3){ lastBeep=s; beep(700,0.12); }
+    raf=requestAnimationFrame(tick);
+  }
+  function start(){
+    if(running)return;
+    if(pausedRemain!=null){ startT=performance.now()-(limitMs-pausedRemain); pausedRemain=null; }
+    else { readInputs(); if(limitMs<=0)return; startT=performance.now(); }
+    running=true; lastBeep=-1; if(raf)cancelAnimationFrame(raf); tick();
+    if(ac&&ac.state==='suspended')ac.resume();
+  }
+  function pause(){
+    if(running){ running=false; if(raf)cancelAnimationFrame(raf); pausedRemain=limitMs-(performance.now()-startT); $('pauseBtn').textContent="▶ 재개"; }
+    else if(pausedRemain!=null){ start(); $('pauseBtn').textContent="⏸ 일시정지"; }
+  }
+  function reset(){
+    running=false; if(raf)cancelAnimationFrame(raf); pausedRemain=null; $('pauseBtn').textContent="⏸ 일시정지";
+    readInputs(); show(limitMs);
+  }
+
+  $('startBtn').addEventListener('click',()=>{ if(ac&&ac.state==='suspended')ac.resume(); start(); });
+  $('pauseBtn').addEventListener('click',pause);
+  $('resetBtn').addEventListener('click',reset);
+  ['mm','ss','rmm','rss'].forEach(id=>$(id).addEventListener('input',()=>{ if(!running&&pausedRemain==null){ readInputs(); show(limitMs); } else save(); }));
+
+  // fullscreen
+  $('fsBtn').addEventListener('click',()=>{
+    if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); }
+    else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
+  });
+
+  // auto-hide controls
+  let hideT=null;
+  function showBar(){ bar.classList.remove('hide'); hint.classList.remove('hide'); clearTimeout(hideT); hideT=setTimeout(()=>{ if(running){ bar.classList.add('hide'); hint.classList.add('hide'); } },3000); }
+  document.addEventListener('mousemove',showBar);
+  $('stage').addEventListener('click',()=>{ bar.classList.contains('hide')?showBar():(running&&(bar.classList.add('hide'),hint.classList.add('hide'))); });
+  document.addEventListener('touchstart',showBar,{passive:true});
+
+  // keyboard
+  document.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT')return;
+    if(e.code==='Space'){ e.preventDefault(); (running||pausedRemain!=null)?pause():start(); }
+    else if(e.key==='r'||e.key==='R'){ reset(); }
+    else if(e.key==='f'||e.key==='F'){ $('fsBtn').click(); }
+  });
+
+  load(); show(limitMs); showBar();
+})();
+</script>
+</body>
+</html>
