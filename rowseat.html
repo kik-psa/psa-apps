@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="7";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="8";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -25,7 +25,15 @@
   .mbtn{display:block;width:100%;border:none;border-radius:14px;padding:15px 16px;margin-top:10px;font-size:17px;font-weight:800;text-align:left;}
   .mbtn span{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:3px;}
   .mbtn.shoot{background:#2f6f4a;color:#fff;} .mbtn.sim{background:#3a4a6a;color:#cfe3ff;}
-  .boatlabel{position:absolute;transform:translateX(-50%);background:rgba(255,213,74,0.15);border:1px solid rgba(255,213,74,0.55);color:var(--gold);font-weight:800;font-size:16px;padding:2px 12px;border-radius:13px;white-space:nowrap;pointer-events:none;}
+  .boathdr{position:absolute;transform:translateX(-50%);display:flex;align-items:center;gap:7px;background:rgba(21,21,31,.92);border:1px solid #33334a;border-radius:15px;padding:3px 10px 3px 4px;white-space:nowrap;cursor:pointer;}
+  .boathdr .bn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#3a4a6a;color:#fff;font-weight:900;font-size:13px;}
+  .boathdr .bo{font-weight:800;font-size:15px;color:#6a6a80;}
+  .boathdr.has .bo{color:var(--gold);}
+  .boathdr:active{transform:translateX(-50%) scale(.96);}
+  .stagelabel{position:absolute;font-weight:900;font-size:34px;color:#3a3a4c;letter-spacing:3px;pointer-events:none;}
+  .stagelabel.sl-r{right:36px;top:22px;} .stagelabel.sl-l{left:36px;top:648px;}
+  .cam{position:absolute;left:910px;top:686px;transform:translateX(-50%);text-align:center;font-size:34px;line-height:1;pointer-events:none;}
+  .cam .cl{display:block;font-size:12px;font-weight:800;color:#8fd6ff;margin-top:2px;letter-spacing:1px;}
   .imgov{position:fixed;inset:0;background:#000;z-index:40;display:none;flex-direction:column;}
   .imgov.on{display:flex;}
   .imgov .imgbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:#15151f;color:var(--text);font-weight:800;font-size:14px;}
@@ -81,12 +89,15 @@
     <button id="modeBtn" class="modeBtn">용도 ▾</button>
     <h1>1Q 로잉 자리 배치</h1>
     <div class="sub">자리를 눌러 이름을 배정하세요 · <span class="cnt" id="cnt">0/48</span> 배정</div>
-    <div class="hint">8팀(보트) × 6 · 좌하단 Data Center · 손가락으로 밀어(스크롤) 보세요</div>
+    <div class="hint">배 위 번호=그룹(1~8) · 번호 옆을 눌러 소속 입력 · 손가락으로 밀어 보세요</div>
   </header>
   <div class="stagewrap" id="stagewrap">
     <div id="stage">
       <svg class="cables" viewBox="0 0 1820 800" id="cables"></svg>
+      <div class="stagelabel sl-r">상수</div>
+      <div class="stagelabel sl-l">하수</div>
       <div class="mon"><div class="box">🖥️</div><div class="lb">Data Center</div></div>
+      <div class="cam">🎥<span class="cl">CAM</span></div>
     </div>
   </div>
   <div class="toolbar">
@@ -105,7 +116,7 @@
   <div class="ov" id="ov">
     <div class="sheet">
       <div class="sh"><span class="tt" id="mTitle">자리 배정</span><button class="cls" id="mClose">닫기</button></div>
-      <div class="free"><input id="orgInput" type="text" placeholder="소속 (예:KOR)" style="max-width:120px;"><input id="freeInput" type="text" placeholder="이름"><button id="freeSet">지정</button></div>
+      <div class="free"><input id="freeInput" type="text" placeholder="이름 직접 입력"><button id="freeSet">지정</button></div>
       <div class="srch"><input id="srch" type="text" placeholder="출연진 검색 (이름/국가)"></div>
       <div class="roster" id="roster"></div>
       <button class="clrseat" id="clrSeat">이 자리 비우기</button>
@@ -133,9 +144,18 @@
   ];
 
   let mode = localStorage.getItem('rowseat_mode')||'';  // '촬영' | '시뮬'
-  let data=load();          // {seatNum:{o:소속,n:이름}}
-  Object.keys(data).forEach(k=>{ if(typeof data[k]==='string') data[k]={o:'',n:data[k]}; });
-  const ORG={"대한민국":"KOR","몽골":"MGL","일본":"JPN","호주":"AUS","인도":"IND","우즈베키스탄":"UZB","사우디아라비아":"KSA","뉴질랜드":"NZL"};
+  const OK="rowseat_orgs_v1";
+  let orgs=(function(){try{return JSON.parse(localStorage.getItem(OK))||{};}catch(e){return {};}})(); // {boatIndex0-7:소속}
+  function saveOrgs(){try{localStorage.setItem(OK,JSON.stringify(orgs));}catch(e){}}
+  let data=(function(){
+    const raw=load();
+    if(Object.keys(orgs).length===0){ // 구버전(자리별 소속) → 배별 소속으로 이관
+      for(let p=0;p<8;p++){const c={};for(let i=1;i<=6;i++){const v=raw[6*p+i];if(v&&typeof v==='object'&&v.o){c[v.o]=(c[v.o]||0)+1;}}let b='',bc=0;for(const k in c){if(c[k]>bc){bc=c[k];b=k;}}if(b)orgs[p]=b;}
+      if(Object.keys(orgs).length)saveOrgs();
+    }
+    const d={}; Object.keys(raw).forEach(k=>{const v=raw[k]; const n=(v&&typeof v==='object')?(v.n||''):v; if(n)d[k]=n;});
+    return d;                 // {seatNum:이름}
+  })();
   let curSeat=null;
   const stage=$('stage'), cables=$('cables');
   const SW=1820, SH=800, CW=54, CH=44, RY=60, CWD=36;
@@ -160,7 +180,7 @@
     const hh=1.5*RY+CH/2+22, hw=CWD+CW/2+16;
     const RT=(x,y)=>[cx+(x*ca-y*sa), cy+(x*sa+y*ca)];
     const tp=RT(0,-hh), bt=RT(0,hh), cr=RT(hw,0), cl=RT(-hw,0);
-    BMETA.push({cx:cx, ty:tp[1]});
+    BMETA.push({cx:cx, ty:tp[1], cy:cy});
     HULLS.push(`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Q${cr[0].toFixed(1)} ${cr[1].toFixed(1)} ${bt[0].toFixed(1)} ${bt[1].toFixed(1)} Q${cl[0].toFixed(1)} ${cl[1].toFixed(1)} ${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Z`);
   }
   const seatByN={}; seats.forEach(s=>seatByN[s.n]=s);
@@ -168,50 +188,51 @@
   function seatCenter(n){const s=seatByN[n];return {x:s.x+CW/2,y:s.y+CH/2};}
   function drawHulls(){
     let d='';
+    const camX=910, camY=680;
+    for(let p=0;p<8;p++){ const m=BMETA[p]; d+=`<path d="M${camX} ${camY} L${m.cx.toFixed(1)} ${(m.cy+34).toFixed(1)}" stroke="#2b3548" stroke-width="1.5" stroke-dasharray="5 7" fill="none"/>`; }
     HULLS.forEach(h=>{ d+=`<path d="${h}" fill="#131b2a" stroke="#3c4c68" stroke-width="2.5"/>`; });
     const mon={x:92,y:SH-92};
     d+=`<path d="M${mon.x} ${mon.y} L${seatCenter(1).x} ${seatCenter(1).y}" stroke="#33334a" stroke-width="2" fill="none"/>`;
     cables.innerHTML=d;
   }
 
-  function boatOrg(p){
-    const c={}; for(let i=1;i<=6;i++){const v=data[6*p+i]; if(v&&v.o){c[v.o]=(c[v.o]||0)+1;}}
-    let b='',bc=0; for(const k in c){ if(c[k]>bc){bc=c[k];b=k;} } return b;
-  }
   function render(){
-    stage.querySelectorAll('.seat,.boatlabel').forEach(e=>e.remove());
+    stage.querySelectorAll('.seat,.boathdr').forEach(e=>e.remove());
     seats.forEach(s=>{
-      const v=data[s.n];
+      const nm=data[s.n];
       const el=document.createElement('div');
-      el.className='seat '+(v&&v.n?'filled':'empty');
+      el.className='seat '+(nm?'filled':'empty');
       el.style.left=s.x+'px'; el.style.top=s.y+'px';
-      let inner='<span class="num">'+s.n+'</span>';
-      if(v&&v.n){ inner+=(v.o?'<span class="org">'+esc(v.o)+'</span>':'')+'<span class="nm">'+esc(v.n)+'</span>'; }
-      else inner+='<span class="nm"></span>';
-      el.innerHTML=inner;
+      el.innerHTML='<span class="num">'+s.n+'</span><span class="nm">'+(nm?esc(nm):'')+'</span>';
       el.addEventListener('click',()=>openSeat(s.n));
       stage.appendChild(el);
     });
     for(let p=0;p<8;p++){
-      const org=boatOrg(p);
-      if(org){
-        const m=BMETA[p]; const lb=document.createElement('div');
-        lb.className='boatlabel'; lb.textContent=org;
-        lb.style.left=m.cx+'px'; lb.style.top=(m.ty-34)+'px';
-        stage.appendChild(lb);
-      }
+      const m=BMETA[p]; const org=orgs[p]||'';
+      const h=document.createElement('div');
+      h.className='boathdr'+(org?' has':'');
+      h.style.left=m.cx+'px'; h.style.top=(m.ty-42)+'px';
+      h.innerHTML='<span class="bn">'+(p+1)+'</span><span class="bo">'+(org?esc(org):'＋소속')+'</span>';
+      h.addEventListener('click',()=>setBoatOrg(p));
+      stage.appendChild(h);
     }
-    const filled=Object.values(data).filter(v=>v&&v.n).length;
+    const filled=Object.values(data).filter(Boolean).length;
     $('cnt').textContent=filled+'/48';
+  }
+  function setBoatOrg(p){
+    const cur=orgs[p]||'';
+    const v=prompt((p+1)+'번 배 소속 입력 (예: KOR) · 지우려면 비우고 확인', cur);
+    if(v===null)return;
+    const t=v.trim(); if(t)orgs[p]=t; else delete orgs[p];
+    saveOrgs(); render();
   }
   drawHulls(); render();
 
   // ---- assign modal ----
-  function usedMap(){const m={};Object.entries(data).forEach(([k,v])=>{if(v&&v.n)m[v.n]=k;});return m;}
+  function usedMap(){const m={};Object.entries(data).forEach(([k,v])=>{if(v)m[v]=k;});return m;}
   function openSeat(n){
     curSeat=n; $('mTitle').textContent=n+'번 자리 배정';
-    const v=data[n]||{o:'',n:''};
-    $('orgInput').value=v.o||''; $('freeInput').value=v.n||''; $('srch').value='';
+    $('freeInput').value=data[n]||''; $('srch').value='';
     const sim=(mode==='시뮬');
     document.querySelector('.srch').style.display=sim?'none':'';
     $('roster').style.display=sim?'none':'';
@@ -227,19 +248,19 @@
       html+='<div class="grp"><div class="gt">'+country+'</div><div class="chips">';
       items.forEach(nm=>{
         const at=used[nm]; const cls='chip'+(at&&at!=curSeat?' used':'');
-        html+='<button class="'+cls+'" data-nm="'+esc(nm)+'" data-org="'+ORG[country]+'">'+esc(nm)+(at?'<span class="at">'+at+'번</span>':'')+'</button>';
+        html+='<button class="'+cls+'" data-nm="'+esc(nm)+'">'+esc(nm)+(at?'<span class="at">'+at+'번</span>':'')+'</button>';
       });
       html+='</div></div>';
     });
     $('roster').innerHTML=html;
-    $('roster').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>assign(b.dataset.org,b.dataset.nm)));
+    $('roster').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>assign(b.dataset.nm)));
   }
-  function assign(org,nm){
-    for(const k in data){ if(data[k]&&data[k].n===nm && k!=curSeat) delete data[k]; }
-    data[curSeat]={o:org||'',n:nm}; save(data); render(); close();
+  function assign(nm){
+    for(const k in data){ if(data[k]===nm && k!=curSeat) delete data[k]; }
+    data[curSeat]=nm; save(data); render(); close();
   }
   function close(){$('ov').classList.remove('on');}
-  $('freeSet').addEventListener('click',()=>{const nm=$('freeInput').value.trim(); const org=$('orgInput').value.trim(); if(nm){assign(org,nm);} else {delete data[curSeat];save(data);render();close();}});
+  $('freeSet').addEventListener('click',()=>{const nm=$('freeInput').value.trim(); if(nm){assign(nm);} else {delete data[curSeat];save(data);render();close();}});
   $('freeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){$('freeSet').click();}});
   $('srch').addEventListener('input',e=>renderRoster(e.target.value));
   $('clrSeat').addEventListener('click',()=>{delete data[curSeat];save(data);render();close();});
