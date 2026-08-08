@@ -9,7 +9,7 @@
 <title>1Q 로잉 자리 배치</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="8";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
+(function(){var V="9";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.rowseat&&String(j.rowseat)!==V&&location.search.indexOf("v="+j.rowseat)===-1){location.replace(location.pathname+"?v="+j.rowseat);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -31,7 +31,7 @@
   .boathdr.has .bo{color:var(--gold);}
   .boathdr:active{transform:translateX(-50%) scale(.96);}
   .stagelabel{position:absolute;font-weight:900;font-size:34px;color:#3a3a4c;letter-spacing:3px;pointer-events:none;}
-  .stagelabel.sl-r{right:36px;top:22px;} .stagelabel.sl-l{left:36px;top:648px;}
+  .stagelabel.sl-r{right:36px;top:22px;} .stagelabel.sl-l{left:36px;top:22px;}
   .cam{position:absolute;left:910px;top:686px;transform:translateX(-50%);text-align:center;font-size:34px;line-height:1;pointer-events:none;}
   .cam .cl{display:block;font-size:12px;font-weight:800;color:#8fd6ff;margin-top:2px;letter-spacing:1px;}
   .imgov{position:fixed;inset:0;background:#000;z-index:40;display:none;flex-direction:column;}
@@ -145,6 +145,7 @@
 
   let mode = localStorage.getItem('rowseat_mode')||'';  // '촬영' | '시뮬'
   const OK="rowseat_orgs_v1";
+  const ORG={"대한민국":"KOR","몽골":"MGL","일본":"JPN","호주":"AUS","인도":"IND","우즈베키스탄":"UZB","사우디아라비아":"KSA","뉴질랜드":"NZL"};
   let orgs=(function(){try{return JSON.parse(localStorage.getItem(OK))||{};}catch(e){return {};}})(); // {boatIndex0-7:소속}
   function saveOrgs(){try{localStorage.setItem(OK,JSON.stringify(orgs));}catch(e){}}
   let data=(function(){
@@ -248,16 +249,18 @@
       html+='<div class="grp"><div class="gt">'+country+'</div><div class="chips">';
       items.forEach(nm=>{
         const at=used[nm]; const cls='chip'+(at&&at!=curSeat?' used':'');
-        html+='<button class="'+cls+'" data-nm="'+esc(nm)+'">'+esc(nm)+(at?'<span class="at">'+at+'번</span>':'')+'</button>';
+        html+='<button class="'+cls+'" data-nm="'+esc(nm)+'" data-country="'+esc(country)+'">'+esc(nm)+(at?'<span class="at">'+at+'번</span>':'')+'</button>';
       });
       html+='</div></div>';
     });
     $('roster').innerHTML=html;
-    $('roster').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>assign(b.dataset.nm)));
+    $('roster').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>assign(b.dataset.nm,b.dataset.country)));
   }
-  function assign(nm){
+  function assign(nm,country){
     for(const k in data){ if(data[k]===nm && k!=curSeat) delete data[k]; }
-    data[curSeat]=nm; save(data); render(); close();
+    data[curSeat]=nm;
+    if(country && ORG[country]){ const p=Math.floor((curSeat-1)/6); orgs[p]=ORG[country]; saveOrgs(); }
+    save(data); render(); close();
   }
   function close(){$('ov').classList.remove('on');}
   $('freeSet').addEventListener('click',()=>{const nm=$('freeInput').value.trim(); if(nm){assign(nm);} else {delete data[curSeat];save(data);render();close();}});
