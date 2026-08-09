@@ -9,7 +9,7 @@
 <title>타이머</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="2";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.onetimer&&String(j.onetimer)!==V&&location.search.indexOf("v="+j.onetimer)===-1){location.replace(location.pathname+"?v="+j.onetimer);}}).catch(function(){});}catch(e){}})();
+(function(){var V="3";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.onetimer&&String(j.onetimer)!==V&&location.search.indexOf("v="+j.onetimer)===-1){location.replace(location.pathname+"?v="+j.onetimer);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -132,26 +132,25 @@
     if(type==='loop'){
       while(rem<=0){ countA++; countB++; updateCounts(); beep(880,0.3); startT+=limitMs; rem+=limitMs; lastBeep=-1; }
     } else if(rem<=0){
-      running=false; if(raf)cancelAnimationFrame(raf); show(0); beep(880,0.5); $('pauseBtn').textContent="⏸ 일시정지"; return;
+      running=false; if(raf)clearInterval(raf); show(0); beep(880,0.5); $('pauseBtn').textContent="⏸ 일시정지"; return;
     }
     show(rem);
     const s=Math.ceil(rem/1000);
     if(rem<=redMs && s!==lastBeep && s<=3){ lastBeep=s; beep(700,0.12); }
-    raf=requestAnimationFrame(tick);
   }
   function start(){
     if(running)return;
     if(pausedRemain!=null){ startT=performance.now()-(limitMs-pausedRemain); pausedRemain=null; }
     else { readInputs(); if(limitMs<=0)return; startT=performance.now(); }
-    running=true; lastBeep=-1; if(raf)cancelAnimationFrame(raf); tick();
+    running=true; lastBeep=-1; if(raf)clearInterval(raf); tick(); raf=setInterval(tick,200);
     if(ac&&ac.state==='suspended')ac.resume();
   }
   function pause(){
-    if(running){ running=false; if(raf)cancelAnimationFrame(raf); pausedRemain=limitMs-(performance.now()-startT); $('pauseBtn').textContent="▶ 재개"; }
+    if(running){ running=false; if(raf)clearInterval(raf); pausedRemain=limitMs-(performance.now()-startT); $('pauseBtn').textContent="▶ 재개"; }
     else if(pausedRemain!=null){ start(); $('pauseBtn').textContent="⏸ 일시정지"; }
   }
   function reset(){
-    running=false; if(raf)cancelAnimationFrame(raf); pausedRemain=null; $('pauseBtn').textContent="⏸ 일시정지";
+    running=false; if(raf)clearInterval(raf); pausedRemain=null; $('pauseBtn').textContent="⏸ 일시정지";
     readInputs(); show(limitMs);
   }
   function resetCounts(){ countA=0; countB=0; updateCounts(); }
@@ -162,7 +161,7 @@
     $('chooser').style.display='none'; $('app').classList.add('on');
     const loop=(t==='loop');
     $('abwrap').classList.toggle('on',loop);
-    $('cntResetBtn').style.display=loop?'':'none';
+    $('cntResetBtn').style.display=loop?'inline-block':'none';
     if(loop){ resetCounts(); }
     showBar();
   }
