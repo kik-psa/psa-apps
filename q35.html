@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>3.5Q 무한계단 타이머</title>
+<script>
+/* 자동 캐시 무효화 */
+(function(){var V="1";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.q35&&String(j.q35)!==V&&location.search.indexOf("v="+j.q35)===-1){location.replace(location.pathname+"?v="+j.q35);}}).catch(function(){});}catch(e){}})();
+</script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{--bg:#0a0a0f;--panel:#15151f;--line:#26263a;--text:#f5f5f7;--muted:#9a9aab;--accent:#37d67a;--gold:#ffd54a;--red:#ff5c5c;--blue:#4aa3ff;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",Roboto,sans-serif;overflow:hidden;}
+  body{display:flex;flex-direction:column;height:100%;}
+  /* top bar */
+  #top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 18px;border-bottom:1px solid var(--line);background:#0d0d15;}
+  #alive{font-size:clamp(18px,3vw,40px);font-weight:900;color:var(--accent);white-space:nowrap;}
+  #alive small{color:var(--muted);font-weight:700;font-size:.5em;}
+  #clockzone{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #clock{font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:.82;white-space:nowrap;color:#fff;font-size:120px;}
+  #cdec{color:var(--gold);font-size:.3em;}
+  #rpmbox{display:flex;align-items:center;gap:10px;}
+  #rpm{font-size:clamp(24px,4.5vw,60px);font-weight:900;color:var(--blue);line-height:1;white-space:nowrap;}
+  #rpm small{font-size:.34em;color:var(--muted);font-weight:700;letter-spacing:1px;margin-left:4px;}
+  #rpmBtn{background:#22303a;border:1px solid var(--line);color:#8fd6ff;border-radius:10px;padding:8px 12px;font-weight:800;font-size:14px;}
+  /* players grid — 3 teams */
+  #gridwrap{flex:0 0 32vh;min-height:0;padding:6px 12px;overflow:auto;}
+  #grid{display:flex;gap:12px;height:100%;}
+  .team{flex:1;display:flex;flex-direction:column;gap:5px;border:1px solid var(--tc,#33465f);border-radius:12px;padding:6px;background:rgba(255,255,255,.015);min-width:0;}
+  .teamhdr{display:flex;align-items:center;justify-content:space-between;padding:0 4px 2px;}
+  .teamhdr .tname{font-size:clamp(13px,1.5vw,20px);font-weight:900;color:var(--tc,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .teamhdr .talive{font-size:clamp(12px,1.3vw,18px);font-weight:900;color:var(--tc,#9a9aab);}
+  .trow{flex:1;display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:1fr;gap:5px;min-height:0;}
+  .t0{--tc:#4aa3ff;} .t1{--tc:#37d67a;} .t2{--tc:#ffb14a;}
+  @media(max-width:760px){#grid{flex-direction:column;} .trow{grid-template-columns:repeat(3,1fr);}}
+  .p{position:relative;border:1.5px solid var(--tc,#33465f);background:#18202e;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;padding:3px;min-height:34px;transition:.08s;}
+  .p.empty{border-style:dashed;border-color:#2a3446;background:#111722;cursor:default;opacity:.5;}
+  .p:active{transform:scale(.97);}
+  .p .nm{font-size:clamp(12px,1.5vw,19px);font-weight:800;text-align:center;line-height:1.05;word-break:break-all;}
+  .p .no{position:absolute;top:3px;left:6px;font-size:10px;font-weight:800;color:var(--muted);}
+  .p.out{background:#241318;border-color:#5a2630;}
+  .p.out .nm{color:#77535a;text-decoration:line-through;}
+  .p.out .rec{margin-top:1px;font-size:clamp(11px,1.3vw,16px);font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;}
+  .p.out .rank{position:absolute;top:3px;right:6px;font-size:11px;font-weight:900;color:var(--red);}
+  /* toolbar */
+  #bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0d0d15;flex-wrap:wrap;}
+  #bar button{flex:1;min-width:90px;height:50px;border:none;border-radius:12px;font-weight:800;font-size:15px;color:#fff;}
+  #startBtn{background:var(--accent);color:#06210f;} #startBtn.paused{background:#e6b800;color:#2a2000;}
+  #resetBtn{background:#3a2226;color:#ff9aa5;} #csvBtn{background:#22303a;color:#8fd6ff;} #setBtn{background:#2a2a3c;} #fsBtn{background:#22303a;color:#8fd6ff;}
+  /* overlays */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.66);display:none;align-items:center;justify-content:center;z-index:30;padding:16px;}
+  .ov.on{display:flex;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;}
+  .card .h{display:flex;align-items:center;gap:10px;padding:16px 18px 8px;}
+  .card .h .t{font-size:18px;font-weight:900;flex:1;}
+  .card .h .x{background:#2a2a3c;border:none;color:#fff;border-radius:9px;padding:8px 12px;font-weight:800;}
+  .card .body{padding:8px 18px 6px;overflow:auto;}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  .row label{font-size:13px;color:var(--muted);font-weight:700;min-width:80px;}
+  .names{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  @media(max-width:640px){.names{grid-template-columns:repeat(2,1fr);}}
+  .names .ni{display:flex;align-items:center;gap:6px;}
+  .names .ni span{font-size:12px;color:var(--muted);width:22px;text-align:right;font-weight:800;}
+  .names .nteam{grid-column:1/-1;font-size:13px;font-weight:900;color:#8fd6ff;margin-top:8px;padding:2px 2px 0;border-top:1px solid var(--line);}
+  input[type=text],input[type=number]{background:#0e0e16;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px;font-size:15px;width:100%;}
+  .card .foot{display:flex;gap:8px;padding:12px 18px 16px;}
+  .card .foot button{flex:1;height:48px;border:none;border-radius:12px;font-weight:800;font-size:15px;}
+  .btn-primary{background:var(--accent);color:#06210f;} .btn-ghost{background:#2a2a3c;color:#fff;}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .quick button{background:#22303a;border:1px solid var(--line);color:#8fd6ff;border-radius:10px;padding:10px 12px;font-weight:800;font-size:15px;}
+  .hint{color:#667;font-size:11.5px;padding:0 18px 12px;}
+</style>
+</head>
+<body>
+  <div id="top">
+    <div id="alive"><span id="aliveN">18</span><small>/18 생존</small></div>
+    <div id="rpmbox"><div id="rpm">—<small>RPM</small></div><button id="rpmBtn">RPM 변경</button></div>
+  </div>
+  <div id="clockzone"><div id="clock"><span id="cmain">00:00</span><span id="cdec">.0</span></div></div>
+  <div id="gridwrap"><div id="grid"></div></div>
+  <div id="bar">
+    <button id="startBtn">▶ 측정 시작</button>
+    <button id="resetBtn">↺ 리셋</button>
+    <button id="csvBtn">⬇ CSV</button>
+    <button id="setBtn">⚙ 설정</button>
+    <button id="fsBtn">⛶ 전체화면</button>
+  </div>
+
+  <!-- 설정 -->
+  <div class="ov" id="setOv">
+    <div class="card">
+      <div class="h"><span class="t">설정 — 선수 명단 & 시작 RPM</span><button class="x" id="setClose">닫기</button></div>
+      <div class="body">
+        <div class="row"><label>시작 RPM</label><input id="startRpm" type="number" min="0" step="50" style="max-width:140px" value="300"></div>
+        <div class="row"><label>팀 이름</label><input id="tn0" type="text" style="max-width:150px" placeholder="팀 A"><input id="tn1" type="text" style="max-width:150px" placeholder="팀 B"><input id="tn2" type="text" style="max-width:150px" placeholder="팀 C"></div>
+        <div class="names" id="names"></div>
+      </div>
+      <div class="hint">※ 이름을 비우면 그 자리는 사용하지 않습니다. 측정 중 리셋해도 명단·RPM은 유지됩니다.</div>
+      <div class="foot"><button class="btn-ghost" id="setCancel">취소</button><button class="btn-primary" id="setSave">저장</button></div>
+    </div>
+  </div>
+
+  <!-- RPM 변경 -->
+  <div class="ov" id="rpmOv">
+    <div class="card" style="max-width:420px">
+      <div class="h"><span class="t">RPM 변경</span><button class="x" id="rpmClose">닫기</button></div>
+      <div class="body">
+        <div class="row"><label>새 RPM</label><input id="rpmInput" type="number" min="0" step="50" style="max-width:160px"></div>
+        <div class="quick">
+          <button data-d="-50">−50</button><button data-d="-10">−10</button><button data-d="10">+10</button><button data-d="50">+50</button>
+        </div>
+        <div class="hint" style="padding:8px 0 0">변경 시각(경과시간)과 함께 기록되어 CSV에 남습니다.</div>
+      </div>
+      <div class="foot"><button class="btn-ghost" id="rpmCancel">취소</button><button class="btn-primary" id="rpmApply">변경 적용</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const K="q35_v1";
+  const N=18;
+  // state
+  let players=[]; // {name, elim(ms|null)}
+  let startRpm=300, rpm=null;
+  let teamNames=['팀 A','팀 B','팀 C'];
+  let rpmLog=[];  // {t(ms), rpm}
+  let running=false, startT=0, elapsed=0, raf=null, startedAtEpoch=null;
+
+  function load(){
+    try{const s=JSON.parse(localStorage.getItem(K));if(s){
+      players=s.players||[]; startRpm=s.startRpm!=null?s.startRpm:300; rpm=s.rpm; rpmLog=s.rpmLog||[]; elapsed=s.elapsed||0; startedAtEpoch=s.startedAtEpoch!=null?s.startedAtEpoch:null; if(Array.isArray(s.teamNames)&&s.teamNames.length===3) teamNames=s.teamNames;
+    }}catch(e){}
+    if(!players.length){ players=Array.from({length:N},(_,i)=>({name:'',elim:null})); }
+    while(players.length<N) players.push({name:'',elim:null});
+  }
+  function save(){ try{localStorage.setItem(K,JSON.stringify({players,startRpm,rpm,rpmLog,elapsed,startedAtEpoch,teamNames}));}catch(e){} }
+
+  // ---- timer ----
+  function fmt(ms){
+    ms=Math.max(0,ms);
+    const t=Math.floor(ms/100); // tenths
+    const d=t%10; let sec=Math.floor(t/10);
+    const h=Math.floor(sec/3600); const m=Math.floor((sec%3600)/60); const s=sec%60;
+    const p=n=>String(n).padStart(2,'0');
+    const main = h>0 ? (h+':'+p(m)+':'+p(s)) : (p(m)+':'+p(s));
+    return {main:main, d:'.'+d};
+  }
+  function two(n){return String(n).padStart(2,'0');}
+  function realStr(ms){ if(startedAtEpoch==null) return ''; const dt=new Date(startedAtEpoch+ms); return two(dt.getHours())+':'+two(dt.getMinutes())+':'+two(dt.getSeconds()); }
+  let lastLen=-1;
+  function fitClock(){
+    const zone=$('clockzone'), clk=$('clock');
+    clk.style.fontSize='100px';
+    const w=clk.scrollWidth||1, h=clk.scrollHeight||1;
+    const availW=(zone.clientWidth||window.innerWidth)*0.97, availH=(zone.clientHeight||1)*0.98;
+    const scale=Math.min(availW/w, availH/h);
+    clk.style.fontSize=Math.max(24,Math.floor(100*scale))+'px';
+  }
+  function paintClock(){ const f=fmt(elapsed); $('cmain').textContent=f.main; $('cdec').textContent=f.d; if(f.main.length!==lastLen){ lastLen=f.main.length; fitClock(); } }
+  function tick(){ if(!running)return; elapsed=performance.now()-startT; paintClock(); }
+  function start(){
+    if(running)return;
+    // require at least names? allow start regardless
+    if(rpm==null){ rpm=Number(startRpm)||0; rpmLog=[{t:0,rpm:rpm}]; paintRpm(); }
+    if(startedAtEpoch==null){ startedAtEpoch=Date.now()-elapsed; }
+    startT=performance.now()-elapsed; running=true;
+    if(raf)clearInterval(raf); raf=setInterval(tick,50);
+    $('startBtn').textContent='⏸ 일시정지'; $('startBtn').classList.add('paused');
+    save();
+  }
+  function pause(){
+    if(!running)return; running=false; if(raf)clearInterval(raf);
+    elapsed=performance.now()-startT; paintClock();
+    $('startBtn').textContent='▶ 측정 재개'; $('startBtn').classList.remove('paused');
+    save();
+  }
+  function toggleStart(){ running?pause():start(); }
+  function reset(){
+    if(!confirm('기록(탈락/시간/RPM 로그)을 모두 초기화할까요? 명단은 유지됩니다.'))return;
+    running=false; if(raf)clearInterval(raf); elapsed=0; startT=0; startedAtEpoch=null;
+    players.forEach(p=>p.elim=null); rpm=null; rpmLog=[];
+    $('startBtn').textContent='▶ 측정 시작'; $('startBtn').classList.remove('paused');
+    paintClock(); paintRpm(); render(); save();
+  }
+
+  function paintRpm(){ $('rpm').firstChild.nodeValue = (rpm==null? (Number(startRpm)||0) : rpm); }
+
+  // ---- players ----
+  function elimOrder(){ // map name index -> order(1=먼저 탈락) by elim asc
+    const outs=players.map((p,i)=>({i,elim:p.elim})).filter(o=>o.elim!=null).sort((a,b)=>a.elim-b.elim);
+    const ord={}; outs.forEach((o,k)=>ord[o.i]=k+1); return ord;
+  }
+  function render(){
+    const grid=$('grid'); grid.innerHTML='';
+    const ord=elimOrder();
+    let alive=0, total=0;
+    for(let t=0;t<3;t++){
+      const s=t*6;
+      const idxs=[]; for(let k=0;k<6;k++) idxs.push(s+k);
+      let tAlive=0, tTotal=0;
+      idxs.forEach(i=>{ if(players[i]&&players[i].name){ tTotal++; if(players[i].elim==null) tAlive++; } });
+      total+=tTotal; alive+=tAlive;
+      const sec=document.createElement('div'); sec.className='team t'+t;
+      const hdr=document.createElement('div'); hdr.className='teamhdr';
+      hdr.innerHTML='<span class="tname">'+esc(teamNames[t]||('팀 '+'ABC'[t]))+'</span><span class="talive">'+tAlive+'/'+tTotal+'</span>';
+      sec.appendChild(hdr);
+      const row=document.createElement('div'); row.className='trow';
+      idxs.forEach(i=>{
+        const p=players[i]||{name:'',elim:null};
+        const el=document.createElement('div');
+        if(!p.name){ el.className='p empty'; el.innerHTML='<span class="no">'+(i+1)+'</span>'; row.appendChild(el); return; }
+        const out=p.elim!=null;
+        el.className='p'+(out?' out':'');
+        let inner='<span class="no">'+(i+1)+'</span><span class="nm">'+esc(p.name)+'</span>';
+        if(out){ const f=fmt(p.elim); inner='<span class="no">'+(i+1)+'</span><span class="rank">'+ord[i]+'째</span><span class="nm">'+esc(p.name)+'</span><span class="rec">'+f.main+f.d+'</span>'; }
+        el.innerHTML=inner;
+        el.addEventListener('click',()=>clickPlayer(i));
+        row.appendChild(el);
+      });
+      sec.appendChild(row);
+      grid.appendChild(sec);
+    }
+    $('aliveN').textContent=alive; $('alive').querySelector('small').textContent='/'+total+' 생존';
+  }
+  function clickPlayer(i){
+    const p=players[i]; if(!p.name)return;
+    if(p.elim==null){
+      p.elim = running ? (performance.now()-startT) : elapsed;
+      // ensure rpm initialized
+      if(rpm==null){ rpm=Number(startRpm)||0; if(!rpmLog.length) rpmLog=[{t:0,rpm:rpm}]; paintRpm(); }
+    } else {
+      if(!confirm('"'+p.name+'" 탈락을 취소(복구)할까요?'))return;
+      p.elim=null;
+    }
+    render(); save();
+  }
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ---- RPM change ----
+  function openRpm(){ $('rpmInput').value = (rpm==null?(Number(startRpm)||0):rpm); $('rpmOv').classList.add('on'); $('rpmInput').focus(); }
+  function applyRpm(){
+    const v=Number($('rpmInput').value);
+    if(!isFinite(v)||v<0){ alert('올바른 RPM을 입력하세요'); return; }
+    rpm=v; const t = running ? (performance.now()-startT) : elapsed;
+    rpmLog.push({t:t,rpm:v}); paintRpm(); $('rpmOv').classList.remove('on'); save();
+  }
+
+  // ---- CSV ----
+  function pad2(n){return String(n).padStart(2,'0');}
+  function timeStr(ms){ const f=fmt(ms); return f.main+f.d; }
+  function exportCSV(){
+    const named=players.map((p,i)=>({p,i})).filter(o=>o.p.name);
+    const alive=named.filter(o=>o.p.elim==null);
+    const outs=named.filter(o=>o.p.elim!=null).sort((a,b)=>b.p.elim-a.p.elim); // 늦게 탈락한 사람이 상위
+    const rankMap={}; let r=1; alive.forEach(o=>rankMap[o.i]=r++); outs.forEach(o=>rankMap[o.i]=r++);
+    const ord=elimOrder();
+    const totalElapsed=elapsed;
+    const lines=[];
+    lines.push(['[측정 요약]']);
+    lines.push(['측정 시작(실제)', startedAtEpoch!=null? new Date(startedAtEpoch).toLocaleString('ko-KR') : '(미시작)']);
+    lines.push(['총 소요시간(경과)', timeStr(totalElapsed)]);
+    lines.push(['총원 / 생존 / 탈락', named.length+' / '+alive.length+' / '+outs.length]);
+    lines.push([]);
+    lines.push(['[선수 기록]']);
+    lines.push(['최종순위','번호','이름','상태','탈락 경과시간','탈락 실제시각','탈락시 RPM','탈락순번']);
+    named.map(o=>{
+      const p=o.p,i=o.i,out=p.elim!=null;
+      let rpmAt=''; if(out){ let c=(rpmLog[0]?rpmLog[0].rpm:startRpm); rpmLog.forEach(e=>{if(e.t<=p.elim)c=e.rpm;}); rpmAt=c; }
+      return [rankMap[i], i+1, p.name, out?'탈락':'생존', out?timeStr(p.elim):'', out?realStr(p.elim):'', rpmAt, out?ord[i]:''];
+    }).sort((a,b)=>a[0]-b[0]).forEach(row=>lines.push(row));
+    lines.push([]);
+    lines.push(['[RPM 변경 로그]']);
+    lines.push(['변경 경과시간','변경 실제시각','RPM','구간 지속(경과)']);
+    rpmLog.forEach((e,k)=>{
+      const nextT=(k+1<rpmLog.length)? rpmLog[k+1].t : totalElapsed;
+      lines.push([timeStr(e.t), realStr(e.t), e.rpm, timeStr(Math.max(0,nextT-e.t))]);
+    });
+    const csv=lines.map(row=>row.map(csvCell).join(',')).join('\r\n');
+    const stamp=new Date(); const fn='3.5Q_무한계단_기록_'+stamp.getFullYear()+pad2(stamp.getMonth()+1)+pad2(stamp.getDate())+'_'+pad2(stamp.getHours())+pad2(stamp.getMinutes())+'.csv';
+    downloadCSV(fn,csv);
+  }
+  function csvCell(v){ v=(v==null?'':String(v)); if(/[",\r\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; }
+  function downloadCSV(fn,csv){
+    const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }
+
+  // ---- settings ----
+  function openSet(){
+    $('startRpm').value=startRpm;
+    for(let t=0;t<3;t++) $('tn'+t).value=teamNames[t]||'';
+    const box=$('names'); box.innerHTML='';
+    for(let t=0;t<3;t++){
+      const lbl=document.createElement('div'); lbl.className='nteam'; lbl.textContent=(teamNames[t]||('팀 '+'ABC'[t]))+' ('+(t*6+1)+'–'+(t*6+6)+')';
+      box.appendChild(lbl);
+      for(let k=0;k<6;k++){ const i=t*6+k; const p=players[i]||{name:''};
+        const d=document.createElement('div'); d.className='ni';
+        d.innerHTML='<span>'+(i+1)+'</span><input type="text" data-i="'+i+'" value="'+esc(p.name)+'" placeholder="선수 '+(i+1)+'">';
+        box.appendChild(d);
+      }
+    }
+    $('setOv').classList.add('on');
+  }
+  function saveSet(){
+    startRpm=Number($('startRpm').value)||0;
+    for(let t=0;t<3;t++){ const v=$('tn'+t).value.trim(); teamNames[t]=v||('팀 '+'ABC'[t]); }
+    $('names').querySelectorAll('input[data-i]').forEach(inp=>{ players[+inp.dataset.i].name=inp.value.trim(); });
+    if(rpm==null) paintRpm();
+    $('setOv').classList.remove('on'); render(); save();
+  }
+
+  // ---- fullscreen ----
+  function fs(){ if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); } else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); } }
+
+  // wire
+  $('startBtn').addEventListener('click',toggleStart);
+  $('resetBtn').addEventListener('click',reset);
+  $('csvBtn').addEventListener('click',exportCSV);
+  $('setBtn').addEventListener('click',openSet);
+  $('fsBtn').addEventListener('click',fs);
+  $('rpmBtn').addEventListener('click',openRpm);
+  $('setClose').addEventListener('click',()=>$('setOv').classList.remove('on'));
+  $('setCancel').addEventListener('click',()=>$('setOv').classList.remove('on'));
+  $('setSave').addEventListener('click',saveSet);
+  $('rpmClose').addEventListener('click',()=>$('rpmOv').classList.remove('on'));
+  $('rpmCancel').addEventListener('click',()=>$('rpmOv').classList.remove('on'));
+  $('rpmApply').addEventListener('click',applyRpm);
+  $('rpmInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyRpm();});
+  document.querySelectorAll('#rpmOv .quick button').forEach(b=>b.addEventListener('click',()=>{ $('rpmInput').value=(Number($('rpmInput').value)||0)+Number(b.dataset.d); }));
+  document.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT')return; if(e.code==='Space'){e.preventDefault();toggleStart();} else if(e.key==='f'||e.key==='F'){fs();} });
+
+  // init
+  load(); paintClock(); paintRpm(); render();
+  fitClock(); requestAnimationFrame(fitClock);
+  window.addEventListener('resize',fitClock);
+  window.addEventListener('load',fitClock);
+  document.addEventListener('fullscreenchange',()=>setTimeout(fitClock,80));
+  if(!players.some(p=>p.name)){ openSet(); }  // 첫 실행이면 설정 열기
+})();
+</script>
+</body>
+</html>
