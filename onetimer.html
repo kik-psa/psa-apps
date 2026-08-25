@@ -9,7 +9,7 @@
 <title>타이머</title>
 <script>
 /* 자동 캐시 무효화 */
-(function(){var V="4";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.onetimer&&String(j.onetimer)!==V&&location.search.indexOf("v="+j.onetimer)===-1){location.replace(location.pathname+"?v="+j.onetimer);}}).catch(function(){});}catch(e){}})();
+(function(){var V="5";try{fetch("version.json?cb="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){if(j&&j.onetimer&&String(j.onetimer)!==V&&location.search.indexOf("v="+j.onetimer)===-1){location.replace(location.pathname+"?v="+j.onetimer);}}).catch(function(){});}catch(e){}})();
 </script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -21,7 +21,12 @@
   .tbtn{width:100%;max-width:420px;border:1px solid #26263a;background:#15151f;color:#fff;border-radius:16px;padding:20px 22px;text-align:left;}
   .tbtn .tt{font-size:19px;font-weight:800;}
   .tbtn .ds{font-size:13px;color:#9a9aab;margin-top:5px;font-weight:600;}
-  .tbtn.b1{border-color:#37d67a55;} .tbtn.b2{border-color:#8fd6ff55;}
+  .tbtn.b1{border-color:#37d67a55;} .tbtn.b2{border-color:#8fd6ff55;} .tbtn.b3{border-color:#ffd54a55;}
+  /* viking embed */
+  #vwrap{position:fixed;inset:0;display:none;z-index:35;background:#000;}
+  #vwrap.on{display:block;}
+  #vwrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;background:#000;}
+  #vback{position:fixed;top:8px;right:10px;background:#15151f;border:1px solid #26263a;color:#8fd6ff;border-radius:10px;padding:8px 12px;font-weight:800;font-size:13px;z-index:36;}
   /* timer */
   #app{position:fixed;inset:0;display:none;align-items:center;justify-content:center;}
   #app.on{display:flex;}
@@ -64,7 +69,10 @@
     <div class="sub">타이머 종류를 선택하세요</div>
     <button class="tbtn b1" data-t="normal"><div class="tt">① 일반 타이머</div><div class="ds">지정 시간 카운트다운 · 빨간색 전환 · HDMI 풀스크린</div></button>
     <button class="tbtn b2" data-t="loop"><div class="tt">② 반복 타이머 (A · B 카운트)</div><div class="ds">시간이 끝나면 자동 반복 · 빨간색 전환 · 완료할 때마다 A/B +1</div></button>
+    <button class="tbtn b3" data-t="viking"><div class="tt">③ 바이킹 (양쪽 번갈아)</div><div class="ds">A·B 번갈아 · 무게(kg) 증량 · 제한시간 · 기록/CSV · 2Q 바이킹과 동일</div></button>
   </div>
+
+  <div id="vwrap"><button id="vback">← 종류</button></div>
 
   <div id="app">
     <div id="clock">15:00</div>
@@ -165,7 +173,15 @@
     if(loop){ resetCounts(); }
     showBar();
   }
-  document.querySelectorAll('#chooser .tbtn').forEach(b=>b.addEventListener('click',()=>{ if(ac&&ac.state==='suspended')ac.resume(); setType(b.dataset.t); }));
+  // ---- viking embed (2Q 바이킹 타이머 재사용) ----
+  const vwrap=$('vwrap');
+  function openViking(){
+    if(!vwrap.querySelector('iframe')){ const f=document.createElement('iframe'); f.src='timer.html?embed=viking'; vwrap.appendChild(f); }
+    $('chooser').style.display='none'; vwrap.classList.add('on');
+  }
+  $('vback').addEventListener('click',()=>{ vwrap.classList.remove('on'); $('chooser').style.display='flex'; });
+
+  document.querySelectorAll('#chooser .tbtn').forEach(b=>b.addEventListener('click',()=>{ if(ac&&ac.state==='suspended')ac.resume(); if(b.dataset.t==='viking'){ openViking(); } else { setType(b.dataset.t); } }));
   back.addEventListener('click',()=>{ reset(); $('app').classList.remove('on'); $('abwrap').classList.remove('on'); $('chooser').style.display='flex'; });
 
   $('startBtn').addEventListener('click',()=>{ if(ac&&ac.state==='suspended')ac.resume(); start(); });
