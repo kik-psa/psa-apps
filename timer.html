@@ -242,6 +242,7 @@
           <button id="shotPause">일시정지</button>
           <button id="shotReset">리셋</button>
           <button id="shotFail">종료</button>
+          <button id="shotFs">⛶ 전체화면</button>
         </div>
         <div class="wbox">
           <span class="wlbl">무게</span>
@@ -630,6 +631,8 @@
 
   function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+  function toggleFs(){ try{ if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement); } else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); } }catch(e){} }
+
   /* ---------- SHOT CLOCK (제한시간 타이머) ---------- */
   function initShot(){
     let mode="sisyphus", limitMs=30000;
@@ -797,6 +800,8 @@
   }
 
   // wire up
+  { const _fsb=document.getElementById('shotFs'); if(_fsb) _fsb.addEventListener('click',toggleFs); }
+  document.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT')return; if(e.key==='f'||e.key==='F') toggleFs(); });
   $('startBtn').addEventListener('click',start);
   $('resetBtn').addEventListener('click',resetRace);
   $('addTeam').addEventListener('click',()=>{ teams.push({name:"",color:"#8888aa"}); renderTeams(); });
